@@ -1,0 +1,199 @@
+\section{Router-span dependence}
+\label{sec:span}
+
+Collapse susceptibility depends on the number of replicas a single
+router instance spans, at fixed per-replica load and fixed
+per-replica physics. This section states the probabilistic result,
+then works through an elimination argument: configuration
+independence, scale-invariant per-replica physics, refutation of
+load imbalance and (for the measured router) coordinator saturation,
+an affinity-necessity ablation, shard containment, and the
+per-replica signatures that survive elimination.
+
+\subsection{Probabilistic left-shift of the collapse curve}
+\label{sec:leftshift}
+
+At capacity-matched operating points the collapse curve shifts left
+with router span \evid{R6}. The 16-replica single-router sweep: 0.034
+sessions/s recovers 1/1 ($n=1$), 0.037 splits 1/2, 0.040 collapses 4/4
+(one run truncated at 135\,min with its surge backlog still pinned,
+classified as collapsed at truncation and excluded from the Section
+\ref{sec:separatrix} fit; one run under the approximate-prefix configuration, Section
+\ref{sec:configindep}). In capacity-normalized rate these points sit at
+0.017 / 0.0185 / 0.020. The 8-replica sweep at the same normalized
+points: 0.017 recovers 4/4, 0.020 collapses 5/8, 0.022 collapses 3/3
+($n=7$ runs at 16 replicas, 15 at 8) \evid{R6}. The mixed-outcome point
+moves from 0.020 to 0.0185, a $\sim$7.5\% shift; the edge brackets bound
+the shift only loosely (0 to $\sim$16\%). The counts bracket the shift but
+do not establish it statistically at these $n$, and any apparent
+steepening rests on the $n=2$ point; no fitted probability curve is
+claimed.
+
+The 16-replica collapses also differ in kind. Every one is
+early-onset - hit-rate erosion underway by minute $\sim$125--155 - and
+fleet-total, across 5 collapses spanning days and configurations;
+the delayed class of Section~\ref{sec:horizon} does not appear at $N{=}16$ \evid{R6}\evid{R10}.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_ladder_tally.png}
+\caption{Collapse fraction per operating point on a shared
+capacity-normalized rate axis: 8-replica sweep 0/4 at 0.017, 5/8 at
+0.020, 3/3 at 0.022 ($n=15$); 16-replica single-router sweep 0/1 at
+0.034, 1/2 at 0.037, 4/4 at 0.040 ($n=7$), plotted at
+0.017/0.0185/0.020 normalized. The mixed-outcome point moves left
+$\sim$7.5\%; the 0.034 anchor is a single run. Dashed segments are visual
+guides, not fitted probability curves.}
+\label{fig:ladder}
+\end{figure}
+
+\subsection{Configuration independence}
+\label{sec:configindep}
+
+The 16-replica collapse at 0.040 does not depend on the router's
+prefix-index implementation. It reproduces under the precise
+prefix-cache configuration (3 runs) and under the approximate
+baseline, which runs no KV-event pipeline and no token producer, in
+one run ($n=1$) \evid{R10}. The collapse is a property of span-coupled
+routing over the fleet, not of any single scoring pipeline.
+
+\subsection{Per-replica physics is scale-invariant}
+\label{sec:perreplica}
+
+The span dependence cannot be located in the replicas. The
+per-replica decode-interference fit $\mathrm{tpot} = 10.8\,\mathrm{ms} +
+2.56 \times 10^{-4}\, (R/N)^2$ holds in the per-replica form; the alternative
+fleet-total form is falsified by the saturated 4-replica windows
+(Figure~\ref{fig:tpot}, \evid{out/tpot\_fit.csv}) \evid{R6}. Restore bandwidth is likewise
+per-replica (Section~\ref{sec:congestion}). With per-replica service physics
+invariant in $N$, the span dependence must live in the coordination
+layer \evid{R6}.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{tpot_fit.png}
+\caption{Per-replica decode interference: measured time-per-token
+versus per-replica running load across 4/8/16-replica windows. The
+per-replica quadratic form fits all fleet sizes; a fleet-total form
+fails on the saturated 4-replica windows.}
+\label{fig:tpot}
+\end{figure*}
+
+\subsection{Load imbalance: refuted}
+\label{sec:imbalance}
+
+Query-share dispersion across replicas is invariant in $N$ in every
+phase (warm-phase coefficient of variation 0.46--0.48 at $N{=}4$,
+0.34--0.51 at $N{=}8$, 0.46--0.56 at $N{=}16$; recovery-phase 0.12--0.21,
+0.21, 0.14--0.15 respectively; 15 runs) \evid{R10}. The recovering shard
+run shows higher share dispersion than the collapsing 16-replica
+runs at matched relative times - the opposite ordering of what an
+imbalance mechanism requires - and the max-share ratio grows with $N$
+only as the extreme-value bias of a maximum over $N$ samples.
+
+\subsection{Coordinator saturation: refuted for this router}
+\label{sec:coordinator}
+
+Router-side resources were scraped on all 19 runs of the final
+measurement window and are unsaturated throughout, including through
+three reproducing 16-replica collapses \evid{R13}: KV-event index
+admissions track demand with no plateau (16-replica peak 3.3k/s,
+twice the per-shard rate), event-pool queue depth $\sim$0 in every
+window, router CPU 1.9 of 4 uncontended cores, index lookups
+0.4--0.9\,ms, scheduler end-to-end $\sim$0.1\,ms, and remote tokenization
+230--273\,ms/request uniformly across healthy and collapsing runs.
+This rules out coordinator saturation for this implementation at
+these spans; it does not by itself establish any alternative
+mechanism, and no claim is made for other coordinators.
+
+\subsection{Affinity necessity}
+\label{sec:affinity}
+
+A load-only router configuration (queue and KV-utilization scorers,
+no affinity signal) at ($N{=}8$, 0.020) measures what routing affinity
+carries \evid{R14}. In the one measured run ($n=1$): warm $h$ 0.53 versus
+0.94 under the precise configuration, TTFT p50 2--4\,s pre-surge - a
+degraded but serving warm state - followed by absorbing collapse
+after the surge with no recovery phase (end waiting depth 215, TTFT
+p50 177\,s). The necessity claim rests on the size of the warm-margin
+loss and the absence of any recovery phase in this run, not on an
+outcome frequency. In this run, affinity carried both the warm
+hit-rate margin and the recovery path.
+
+\subsection{Shard containment}
+\label{sec:shards}
+
+Two independent 8-replica routers over the same replica pool at
+matched capacity-normalized load bound the blast radius \evid{R10}.
+Across 6 shard runs, every shard collapse (4, including the
+load-only ablation) stayed inside its own 8-replica partition; in
+both concurrent mixed pairs the sibling shard served untouched while
+its partner collapsed. Every 16-replica single-router collapse (5,
+across days and configurations) was fleet-total. Containment is a
+measured property of the router-span boundary, in the same fleet, at
+the same normalized load.
+
+\subsection{Surviving mechanism: span coupling of the drain race}
+\label{sec:mechanism}
+
+Three measured signatures separate $N{=}16$ from $N{=}8$ at matched fleet
+state \evid{R10}:
+
+\begin{enumerate}
+\item Hit-rate dispersion at equal fleet $h$. Warm fleet $h$ is 0.94 at
+   every $N$, but warm per-replica $h$ standard deviation rises
+   1.4--2.1$\times$ (from $\sim$0.032 at $N{=}4$/8 to 0.044--0.067 at $N{=}16$);
+   busier replicas run warmer (correlation of share and $h$ 0.57--0.86
+   everywhere), so the dispersion is a coordination signature, not a
+   load-balance defect.
+\item Excess occupancy and miss-write flux at the matched re-warm
+   state. At the drain-window read point the 16-replica fleet
+   carries the same per-capacity session state in 0.15--0.20 more of
+   its pool and sustains $\sim$1.7$\times$ the per-capacity miss-write flux
+   relative to the 8-replica trajectories, with a 4--5 point $h$
+   deficit spread across the whole fleet and a measured retention
+   window of 58\,s versus $\sim$190\,s.
+\item Staggered pinning cascade. The 16-replica collapse re-pins
+   replica by replica - 3/16 at $t{=}115$, 11/16 at $t{=}120$, 14/16 at
+   $t{=}125$, 16/16 at $t{=}130$ - with per-replica $h$ spreading to
+   0.10--0.67 before fleet-wide erosion, whereas the 8-replica
+   delayed collapse pins near-synchronously (2/8 to 8/8 within one
+   5-min window).
+\end{enumerate}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_cascade.png}
+\caption{Per-replica dynamics through the post-cancellation window
+(300\,s windows from raw per-replica counters). (a) Count of replicas
+with KV occupancy $> 0.85$: the 16-replica collapse re-pins in a
+staggered cascade while an 8-replica recovery at the matched
+normalized rate never exceeds 3/8 transiently pinned replicas after
+the surge tail. (b) Per-replica $h$ median with interquartile band:
+both fleets re-warm to comparable per-replica $h$ by $t{=}115$ (16-replica
+median 0.88 vs 8-replica 0.92), then the 16-replica fleet erodes
+with widening dispersion while the 8-replica fleet holds $h$
+$\sim$0.90--0.94.}
+\label{fig:cascade}
+\end{figure}
+
+With load imbalance refuted (\ref{sec:imbalance}) and coordinator saturation
+excluded (\ref{sec:coordinator}), the surviving explanation is span coupling of the
+post-cancellation drain race: a collapse seeds locally, and the
+shared balancer spreads cold catch-up flux - full-context
+re-prefills for sessions whose prefixes were evicted elsewhere -
+onto still-warm replicas, duplicating prefixes and eroding fleet $h$,
+while independent shards contain the same seed inside one partition
+\evid{R10}. This is an elimination-plus-reproduction argument, not a
+direct observation of scatter, and its two elements carry different
+support: the duplication element rests on the measured per-replica
+signatures jointly with the ablation and coordinator evidence; the
+span-coupling element is additionally reproduced by the DES, which
+carries the deployed router algorithm, no $N$-dependent term, and
+shifts the collapse curve left emergently (Section~\ref{sec:validation}) \evid{R9}.
+Whether the model's 16-replica collapses also exhibit the
+per-replica signatures has not been checked (Section~\ref{sec:limitations}). The
+containment contrast itself is demonstrated directly by the shard
+measurements. Client records carry no serving-replica identity, so
+session-to-replica scatter is not directly observable in the
+collected data.

@@ -1,0 +1,522 @@
+% Related work for the KV-cache equilibrium paper.
+% Every entry is CITE-DIFF or above per threat-matrix.md. BACKGROUND-only
+% items are listed in threat-matrix.md section 4 and deliberately excluded.
+%
+% Grouped by the sweep areas A-G of related-work-sweep.md.
+
+% ---------------------------------------------------------------------------
+% A. Metastable failures (systems)
+% ---------------------------------------------------------------------------
+
+@inproceedings{bronson2021metastable,
+  author    = {Bronson, Nathan and Aghayev, Abutalib and Charapko, Aleksey and Zhu, Timothy},
+  title     = {Metastable Failures in Distributed Systems},
+  booktitle = {Proceedings of the Workshop on Hot Topics in Operating Systems (HotOS '21)},
+  year      = {2021},
+  pages     = {221--227},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  doi       = {10.1145/3458336.3465286}
+}
+
+@inproceedings{huang2022wild,
+  author    = {Huang, Lexiang and Magnusson, Matthew and Muralikrishna, Abishek Bangalore
+               and Estyak, Salman and Isaacs, Rebecca and Aghayev, Abutalib
+               and Zhu, Timothy and Charapko, Aleksey},
+  title     = {Metastable Failures in the Wild},
+  booktitle = {16th USENIX Symposium on Operating Systems Design and Implementation (OSDI '22)},
+  year      = {2022},
+  pages     = {73--90},
+  publisher = {USENIX Association},
+  address   = {Carlsbad, CA},
+  isbn      = {978-1-939133-28-1},
+  url       = {https://www.usenix.org/conference/osdi22/presentation/huang-lexiang}
+}
+
+@misc{farahbakhsh2026characterizing,
+  author       = {Farahbakhsh, Ali and Lu, Qingjie and Alvisi, Lorenzo
+                  and Haeberlen, Andreas and Van Renesse, Robbert},
+  title        = {Characterizing Metastable Faults and Failures},
+  year         = {2026},
+  eprint       = {2606.00942},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.OS},
+  note         = {Submitted to SOSP 2026}
+}
+
+@misc{alvaro2025formal,
+  author       = {Alvaro, Peter and Isaacs, Rebecca and Majumdar, Rupak
+                  and Muniswamy-Reddy, Kiran-Kumar and Salamati, Mahmoud and Soudjani, Sadegh},
+  title        = {Formal Analysis of Metastable Failures in Software Systems},
+  year         = {2025},
+  eprint       = {2510.03551},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.PF}
+}
+
+@inproceedings{isaacs2025analyzing,
+  author    = {Isaacs, Rebecca and Alvaro, Peter and others},
+  title     = {Analyzing Metastable Failures},
+  booktitle = {Proceedings of the 2025 Workshop on Hot Topics in Operating Systems (HotOS '25)},
+  year      = {2025},
+  doi       = {10.1145/3713082.3730380},
+  note      = {Author list abbreviated; verify against the ACM DL record before submission}
+}
+
+% ---------------------------------------------------------------------------
+% B. LLM serving queueing and stability theory
+% ---------------------------------------------------------------------------
+
+@misc{ao2026congestion,
+  author       = {Ao, Ruicheng and Dong, Jing and Luo, Gan and Simchi-Levi, David},
+  title        = {Service-Induced Congestion in Memory-Constrained {LLM} Serving},
+  year         = {2026},
+  eprint       = {2606.15555},
+  archivePrefix= {arXiv},
+  primaryClass = {math.OC},
+  note         = {101 pages}
+}
+
+@misc{ao2025fluid,
+  author       = {Ao, Ruicheng and Luo, Gan and Simchi-Levi, David and Wang, Xinshang},
+  title        = {Optimizing {LLM} Inference: Fluid-Guided Online Scheduling with Memory Constraints},
+  year         = {2025},
+  eprint       = {2504.11320},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
+}
+
+@misc{nie2026queueing,
+  author       = {Nie, Chengyi and Si, Nian and Zhou, Zijie},
+  title        = {A Queueing-Theoretic Framework for Stability Analysis of {LLM} Inference
+                  with {KV} Cache Memory Constraints},
+  year         = {2026},
+  eprint       = {2605.04595},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG},
+  note         = {Accepted at ICML 2026}
+}
+
+@misc{mitzenmacher2025queueing,
+  author       = {Mitzenmacher, Michael and Shahout, Rana},
+  title        = {Queueing, Predictions, and {LLMs}: Challenges and Open Problems},
+  year         = {2025},
+  eprint       = {2503.07545},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.AI}
+}
+
+% ---------------------------------------------------------------------------
+% C. Prefix and KV cache serving systems
+% ---------------------------------------------------------------------------
+
+@misc{chen2026concur,
+  author       = {Chen, Qiaoling and Ye, Zhisheng and Tang, Tian and Sun, Peng and Tian, Boyu
+                  and Wang, Guoteng and Li, Shenggui and Wen, Yonggang and Han, Zhenhua
+                  and Zhang, Tianwei},
+  title        = {{CONCUR}: High-Throughput Agentic Batch Inference of {LLM}
+                  via Congestion-Based Concurrency Control},
+  year         = {2026},
+  eprint       = {2601.22705},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.DC}
+}
+
+@misc{meng2026metronome,
+  author       = {Meng, Jiaying and Li, Bojie},
+  title        = {Metronome: Bound the Cache, Keep the Beat for Real-Time Interaction Model Serving},
+  year         = {2026},
+  eprint       = {2607.02640},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.SD}
+}
+
+@inproceedings{wang2025kvcachewild,
+  author    = {Wang, Jiahao and Han, Jinbo and Wei, Xingda and Shen, Sijie and Zhang, Dingyan
+               and Fang, Chenguang and Chen, Rong and Yu, Wenyuan and Chen, Haibo},
+  title     = {{KVCache} Cache in the Wild: Characterizing and Optimizing {KVCache} Cache
+               at a Large Cloud Provider},
+  booktitle = {2025 USENIX Annual Technical Conference (USENIX ATC '25)},
+  year      = {2025},
+  publisher = {USENIX Association},
+  url       = {https://www.usenix.org/conference/atc25/presentation/wang-jiahao},
+  note      = {arXiv:2506.02634}
+}
+
+@article{ouyang2026unicache,
+  author  = {Ouyang, Bei and Qiao, Yifan and Xing, Jiarong},
+  title   = {{UniCache}: Unifying Prefix Cache Eviction for Heterogeneous {LLM} Serving Workloads},
+  journal = {Proceedings of the ACM on Measurement and Analysis of Computing Systems (POMACS)},
+  volume  = {10},
+  number  = {2},
+  year    = {2026},
+  doi     = {10.1145/3805652},
+  note    = {Presented at ACM SIGMETRICS 2026}
+}
+
+@inproceedings{qin2025mooncake,
+  author    = {Qin, Ruoyu and Li, Zheming and He, Weiran and Zhang, Mingxing
+               and Wu, Yongwei and Zheng, Weimin and Xu, Xinran},
+  title     = {Mooncake: Trading More Storage for Less Computation:
+               A {KVCache}-centric Architecture for Serving {LLM} Chatbot},
+  booktitle = {23rd USENIX Conference on File and Storage Technologies (FAST '25)},
+  year      = {2025},
+  publisher = {USENIX Association},
+  address   = {Santa Clara, CA}
+}
+
+@inproceedings{zheng2024sglang,
+  author    = {Zheng, Lianmin and Yin, Liangsheng and Xie, Zhiqiang and Sun, Chuyue
+               and Huang, Jeff and Yu, Cody Hao and Cao, Shiyi and Kozyrakis, Christos
+               and Stoica, Ion and Gonzalez, Joseph E. and Barrett, Clark and Sheng, Ying},
+  title     = {{SGLang}: Efficient Execution of Structured Language Model Programs},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2024}
+}
+
+@inproceedings{gao2024cachedattention,
+  author    = {Gao, Bin and He, Zhuomin and Sharma, Puru and Kang, Qingxuan
+               and Jevdjic, Djordje and Deng, Junbo and Yang, Xingkun
+               and Yu, Zhou and Zuo, Pengfei},
+  title     = {Cost-Efficient Large Language Model Serving for Multi-turn Conversations
+               with {CachedAttention}},
+  booktitle = {2024 USENIX Annual Technical Conference (USENIX ATC '24)},
+  year      = {2024},
+  publisher = {USENIX Association}
+}
+
+@misc{srivatsa2024preble,
+  author       = {Srivatsa, Vikranth and He, Zijian and Abhyankar, Reyna
+                  and Li, Dongming and Zhang, Yiying},
+  title        = {Preble: Efficient Distributed Prompt Scheduling for {LLM} Serving},
+  year         = {2024},
+  eprint       = {2407.00023},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.DC}
+}
+
+@inproceedings{liu2024cachegen,
+  author    = {Liu, Yuhan and Li, Hanchen and Cheng, Yihua and Ray, Siddhant
+               and Huang, Yuyang and Zhang, Qizheng and Du, Kuntai and Yao, Jiayi
+               and Lu, Shan and Ananthanarayanan, Ganesh and Maire, Michael
+               and Hoffmann, Henry and Holtzman, Ari and Jiang, Junchen},
+  title     = {{CacheGen}: {KV} Cache Compression and Streaming for Fast Large Language Model Serving},
+  booktitle = {Proceedings of the ACM SIGCOMM 2024 Conference},
+  year      = {2024}
+}
+
+@misc{liu2025lmcache,
+  author       = {Liu, Yuhan and Cheng, Yihua and Yao, Jiayi and An, Yuwei and Chen, Xiaokun
+                  and Feng, Shaoting and Huang, Yuyang and Shen, Samuel and Zhang, Rui
+                  and Du, Kuntai and Jiang, Junchen},
+  title        = {{LMCache}: An Efficient {KV} Cache Layer for Enterprise-Scale {LLM} Inference},
+  year         = {2025},
+  eprint       = {2510.09665},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
+}
+
+% ---------------------------------------------------------------------------
+% D. Classical cache theory
+% ---------------------------------------------------------------------------
+
+@article{che2002hierarchical,
+  author  = {Che, Hao and Tung, Ye and Wang, Zhijun},
+  title   = {Hierarchical Web Caching Systems: Modeling, Design and Experimental Results},
+  journal = {IEEE Journal on Selected Areas in Communications},
+  volume  = {20},
+  number  = {7},
+  pages   = {1305--1314},
+  year    = {2002}
+}
+
+@inproceedings{fricker2012versatile,
+  author    = {Fricker, Christine and Robert, Philippe and Roberts, James},
+  title     = {A Versatile and Accurate Approximation for {LRU} Cache Performance},
+  booktitle = {24th International Teletraffic Congress (ITC 24)},
+  year      = {2012}
+}
+
+@inproceedings{rosensweig2013steady,
+  author    = {Rosensweig, Elisha J. and Menasch{\'e}, Daniel S. and Kurose, Jim},
+  title     = {On the Steady-State of Cache Networks},
+  booktitle = {Proceedings of IEEE INFOCOM 2013},
+  year      = {2013},
+  pages     = {863--871},
+  doi       = {10.1109/INFCOM.2013.6566874},
+  note      = {Best Paper Award}
+}
+
+@inproceedings{denning1968thrashing,
+  author    = {Denning, Peter J.},
+  title     = {Thrashing: Its Causes and Prevention},
+  booktitle = {Proceedings of the AFIPS Fall Joint Computer Conference},
+  year      = {1968},
+  pages     = {915--922}
+}
+
+% ---------------------------------------------------------------------------
+% E. Admission control and overload
+% ---------------------------------------------------------------------------
+
+@inproceedings{patke2024qlm,
+  author    = {Patke, Archit and Reddy, Dhemath and Jha, Saurabh and Qiu, Haoran
+               and Pinto, Christian and Narayanaswami, Chandra
+               and Kalbarczyk, Zbigniew and Iyer, Ravishankar},
+  title     = {Queue Management for {SLO}-Oriented Large Language Model Serving},
+  booktitle = {Proceedings of the 2024 ACM Symposium on Cloud Computing (SoCC '24)},
+  year      = {2024},
+  doi       = {10.1145/3698038.3698523},
+  note      = {arXiv:2407.00047}
+}
+
+% ---------------------------------------------------------------------------
+% F. Workload characterization
+% ---------------------------------------------------------------------------
+
+@misc{zhu2026tracelab,
+  author       = {Zhu, Kan and Jacob, Mathew and Ma, Chenxi and Pan, Yi and Wang, Stephanie
+                  and Krishnamurthy, Arvind and Kasikci, Baris},
+  title        = {{TraceLab}: Characterizing Coding Agent Workloads for {LLM} Serving},
+  year         = {2026},
+  eprint       = {2606.30560},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
+}
+
+@misc{zhu2025prefixprefill,
+  author       = {Zhu, Yue and Yu, Hao and Wang, Chen and Liu, Zhuoran and Lee, Eun Kyung},
+  title        = {Towards Efficient Key-Value Cache Management for Prefix Prefilling
+                  in {LLM} Inference},
+  year         = {2025},
+  eprint       = {2505.21919},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.ET},
+  note         = {IEEE Cloud 2025 (work in progress paper)}
+}
+
+@misc{khailo2026keepalive,
+  author       = {Khailo, Maxim},
+  title        = {Keeping the Cache Warm Pays: Keepalive Economics for Agentic Workloads},
+  year         = {2026},
+  eprint       = {2607.19214},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.DC}
+}
+
+% ---------------------------------------------------------------------------
+% G. Multi-tier KV offload
+% ---------------------------------------------------------------------------
+
+@inproceedings{chen2025impress,
+  author    = {Chen, Weijian and He, Shuibing and Qu, Haoyang and Zhang, Ruidong
+               and Yang, Siling and Chen, Ping and Zheng, Yi and Huai, Baoxing and Chen, Gang},
+  title     = {{IMPRESS}: An Importance-Informed Multi-Tier Prefix {KV} Storage System
+               for Large Language Model Inference},
+  booktitle = {23rd USENIX Conference on File and Storage Technologies (FAST '25)},
+  year      = {2025},
+  pages     = {187--201},
+  publisher = {USENIX Association},
+  address   = {Santa Clara, CA},
+  isbn      = {978-1-939133-45-8}
+}
+
+% ---------------------------------------------------------------------------
+% Refresh 2026-08-25 additions (related-work-sweep.md, dated section).
+% Grouped by sweep area. Verdicts provisional pending threat-matrix update.
+% ---------------------------------------------------------------------------
+
+% --- A. Metastable failures ---
+
+@inproceedings{farahbakhsh2025modeling,
+  author    = {Farahbakhsh, Ali and Haeberlen, Andreas and Lu, Qingjie
+               and Alvisi, Lorenzo and Van Renesse, Robbert and Cohen, Shir},
+  title     = {Modeling Metastability},
+  booktitle = {Proceedings of the 24th ACM Workshop on Hot Topics in Networks (HotNets '25)},
+  year      = {2025},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  doi       = {10.1145/3772356.3772426}
+}
+
+@misc{vanrooyen2026collapse,
+  author       = {van Rooyen, Pieter},
+  title        = {First-Order Recoverability Collapse in Self-Referential Information Decoders:
+                  The Operating Loop of an {AI} System as a Driven Nonequilibrium Steady State},
+  year         = {2026},
+  eprint       = {2606.24861},
+  archivePrefix= {arXiv},
+  primaryClass = {cond-mat.stat-mech},
+  note         = {v3 dated 2026-08-17; under active revision}
+}
+
+@misc{tavori2025retryguard,
+  author       = {Tavori, Jhonatan and Bremler-Barr, Anat and Levy, Hanoch and Lavi, Ofek},
+  title        = {{RetryGuard}: Preventing Self-Inflicted and Attack-Driven Retry Storms
+                  in Cloud Applications},
+  year         = {2025},
+  eprint       = {2511.23278},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.NI},
+  note         = {v2 dated 2026-08-18}
+}
+
+@misc{pandey2026failureatlas,
+  author       = {Pandey, Vishal and Singh, Gopal},
+  title        = {{FailureAtlas}: A Taxonomy of Failure Modes in Multi-Provider {LLM}
+                  Serving Infrastructure},
+  year         = {2026},
+  eprint       = {2607.17525},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG},
+  note         = {Verify the body's retry-storm case study before citing it for that claim}
+}
+
+@misc{cao2026lumen,
+  author       = {Cao, Zhang and Han, Shujie and Zhang, Juncheng and Ren, Yuanming
+                  and Li, Yongkun and Lee, Patrick P. C.},
+  title        = {{LUMEN}: Coordinated Failure Recovery for Distributed {LLM} Serving},
+  year         = {2026},
+  eprint       = {2606.17787},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.DC}
+}
+
+@misc{ranganathan2025incidents,
+  author       = {Ranganathan, Bhala and Zhang, Mickey and Wu, Kai},
+  title        = {Enhancing Reliability in {AI} Inference Services:
+                  An Empirical Study on Real Production Incidents},
+  year         = {2025},
+  eprint       = {2511.07424},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.DC}
+}
+
+% --- B. LLM serving queueing and stability theory ---
+
+@misc{dai2025throughput,
+  author       = {Dai, J. G. and Deng, Tianze and Li, Yueying and Peng, Tianyi},
+  title        = {Throughput-Optimal Scheduling Algorithms for {LLM} Inference and {AI} Agents},
+  year         = {2025},
+  eprint       = {2504.07347},
+  archivePrefix= {arXiv},
+  primaryClass = {stat.ML},
+  note         = {v3 dated 2026-05-18}
+}
+
+@misc{dong2026flow,
+  author       = {Dong, Zhuolun and Cao, Junyu},
+  title        = {Flow-Controlled Scheduling for {LLM} Inference with Provable
+                  Stability Guarantees},
+  year         = {2026},
+  eprint       = {2604.11001},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
+}
+
+% --- C. Cache-aware routing and prefix-affinity scheduling ---
+
+@misc{yuan2026dualmap,
+  author       = {Yuan, Ying and Zuo, Pengfei and Wang, Bo and Chen, Zhangyu
+                  and Tan, Zhipeng and Yu, Zhou},
+  title        = {{DualMap}: Enabling Both Cache Affinity and Load Balancing
+                  for Distributed {LLM} Serving},
+  year         = {2026},
+  eprint       = {2602.06502},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.DC}
+}
+
+@misc{li2025continuum,
+  author       = {Li, Hanchen and He, Runyuan and Mang, Qiuyang and Zhang, Qizheng
+                  and Mao, Huanzhi and Chen, Xiaokun and Zhou, Hangrui and Cheung, Alvin
+                  and Gonzalez, Joseph and Stoica, Ion},
+  title        = {Continuum: Efficient and Robust Multi-Turn {LLM} Agent Scheduling
+                  with {KV} Cache Time-to-Live},
+  year         = {2025},
+  eprint       = {2511.02230},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.OS},
+  note         = {v6 dated 2026-05-25}
+}
+
+@misc{zhang2026cachescout,
+  author       = {Zhang, Rui and Kim, Chaeeun and Feng, Shaoting and Du, Kuntai
+                  and Liu, Yuhan and Zhong, Yi and Ching, Cheng-Wei and Jiang, Junchen
+                  and Hu, Liting},
+  title        = {Learning Agent Execution for {KV}-Cache Management in Agentic Serving},
+  year         = {2026},
+  eprint       = {2608.14624},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.AI},
+  note         = {System name CacheScout}
+}
+
+@misc{ma2026leyline,
+  author       = {Ma, Bole and Eitzinger, Jan and Koestler, Harald},
+  title        = {Leyline: {KV} Cache Directives for Agentic Inference},
+  year         = {2026},
+  eprint       = {2606.01065},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.DC}
+}
+
+% --- F. Workload characterization ---
+
+@misc{yuan2026agentic,
+  author       = {Yuan, Yichao and Nayak, Ankita and Kundu, Souvik and Talati, Nishil},
+  title        = {Agentic {AI} Workload Characteristics},
+  year         = {2026},
+  eprint       = {2605.26297},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.DC}
+}
+
+@misc{nixon2026yearserving,
+  author       = {Nixon, William and Durbin, Jon and Standhartinger, Florian
+                  and Gunawi, Haryadi S. and Yang, Juncheng},
+  title        = {A Year in {LLM} Serving: Workload Evolution, Caching and Load-Balancing},
+  year         = {2026},
+  eprint       = {2608.13573},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.AI},
+  note         = {One-year production trace (Chutes); trace release announced}
+}
+
+% --- G. Multi-tier KV offload and restore bandwidth ---
+
+@misc{nian2026cacheflow,
+  author       = {Nian, Sean and Fang, Jiahao and Feng, Qilong and Wu, Zhiyu and Lai, Fan},
+  title        = {{CacheFlow}: Efficient {LLM} Serving with {3D}-Parallel
+                  {KV} Cache Restoration},
+  year         = {2026},
+  eprint       = {2604.25080},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.DC}
+}
+
+@misc{zheng2026kareto,
+  author       = {Zheng, Xianzhe and Wang, Zhengheng and Ma, Ruiyan and Wang, Rui
+                  and Wang, Xiyu and Chen, Rui and Zhang, Peng and Pan, Sicheng
+                  and Huang, Zhangheng and Wu, Chenxin and Zhang, Yi and Cai, Bo
+                  and Liu, Kan and Ma, Teng and Du, Yin and Deng, Dong and Wu, Sai
+                  and Zhu, Guoyun and Zhang, Wei and Li, Feifei},
+  title        = {Adaptive Multi-Objective Tiered Storage Configuration for
+                  {KV} Cache in {LLM} Service},
+  year         = {2026},
+  eprint       = {2603.08739},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.AR},
+  note         = {System name Kareto}
+}
+
+@misc{ray2026internet,
+  author       = {Ray, Siddhant and Feamster, Nick and Jiang, Junchen},
+  title        = {An Internet for the {KV} Cache: Rethinking Classical Infrastructure
+                  Boundaries in the {LLM} Inference Age},
+  year         = {2026},
+  eprint       = {2608.01526},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.NI},
+  note         = {Position paper}
+}

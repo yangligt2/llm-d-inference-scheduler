@@ -1,0 +1,137 @@
+\section{The host-memory tier: a third regime}
+\label{sec:tier}
+
+Adding a host-memory KV tier (vLLM CPU offloading; configured sizes
+250/375/500 map to effective capacities 0.42/0.63/0.84M tokens per
+replica, Section~\ref{sec:calibration}) to the 8-replica fleet does not remove the
+collapse failure at supercritical rates. It transforms the failure
+into restore-bound congestion, whose persistence is set by tier
+capacity exactly as rule~\eqref{eq:ccpustar} of Section~\ref{sec:tier-theory} predicts \evid{R4}\evid{R11}.
+
+\subsection{Restore-bound congestion}
+\label{sec:congestion}
+
+Under the standard perturbation at 0.022 sessions/s - the rate at
+which the untiered fleet collapses 3/3 - the size-500 tiered fleet
+enters a distinct degraded state in 4 of 6 runs (complete counts in
+Section~\ref{sec:sizeseries}). Four discriminators separate it from cold collapse,
+jointly present in all four congested runs (two at the 300-min
+horizon) \evid{R4}:
+
+\begin{itemize}
+\item Hit rate stays high: $h$ 0.70--0.85, with tier-hit fraction $\hext$
+  0.62--0.79 and restore share of hits 0.66--0.79. Most hits are tier
+  restores, not HBM-resident prefixes.
+\item The fleet restore rate is pinned at 150--192k tokens/s, which is
+  0.81--1.04 of $N \Br$ for the effective per-replica restore rate
+  $\Br = 23$k tokens/s (calibration provenance in Section~\ref{sec:calibration};
+  per-replica plateau 21.4--24.0k across all four congested runs at
+  both fleet scales while demand exceeds it) - the restore-bound
+  throughput of equation~\eqref{eq:murestore}.
+\item KV occupancy holds at 0.93--0.94, and the tier ingests new writes
+  only (measured offload rate 50--78k tokens/s tracks uncached
+  prefill plus generation; restored blocks stay tier-resident).
+\item The queue diverges slowly and linearly, $\sim$0.8 requests/min over 195
+  min, with no transition to the cold state.
+\end{itemize}
+
+Against the cold absorbing state at the same operating point
+(Section~\ref{sec:anatomy}), the congested state delivers $\sim$2.2$\times$ the throughput and
+$\sim$4$\times$ better TTFT \evid{R4}. The failure is not removed: the queue still
+diverges, and the state persisted through both 300-min congested
+runs.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{overlay_restore.png}
+\caption{Restore-bound congestion at ($N{=}8$, 0.022), size-500 tier:
+measured trajectories ($h$, fleet restore rate, waiting) against DES
+bands (5 seeds, 300\,min). DES curves are model output (Section~\ref{sec:models});
+the four regime discriminators - pinned restore channel, linear
+queue divergence, high $h$, no cold collapse - are reproduced in 5 of
+5 seeds. Model quantitative gaps ($h$ 0.95 vs measured 0.70--0.85;
+restore share 1.0 vs 0.66--0.79) are stated in Section~\ref{sec:validation}.}
+\label{fig:restore}
+\end{figure}
+
+\subsection{The pinned band is a state outcome, not a channel capacity}
+\label{sec:pinnedband}
+
+Reading $\Br$ as a hard per-replica restore ceiling is falsified by
+measurement. The two complete-recovery runs sustained 5-minute fleet
+restore rates of 235k and 278k tokens/s - 1.28--1.51$\times$ $N \Br$ -
+during their escape, then ran their post-cancellation restore phase
+at 0.14--0.56 $N \Br$ with waiting 0.3--7 while KV occupancy drained
+from 0.83--0.86 to 0.26--0.31 \evid{R4}. Both measured values are reported;
+at $n=2$, no distribution is claimed. The 150--192k band of Section~\ref{sec:congestion}
+is therefore a congested-state throughput outcome. The raw DMA link
+runs at 151.5\,GB/s = 1.19M tokens/s per replica at $\sim$2\% duty in the
+congested state, so per-transfer overhead, not the link, binds
+there. The serial FCFS restore channel in the DES encodes the
+falsified ceiling interpretation and stands as a documented model
+deficiency; its concurrent-restore replacement fails the
+recovery-branch screen and is not adopted (Section~\ref{sec:failures}) \evid{R9}.
+
+\subsection{Complete recovery at the boundary: one matched pair}
+\label{sec:matchedpair}
+
+At base rate 0.020, inside the untiered probability band, the one
+measured tiered run fully absorbs the surge: tier-hit fraction
+0.42--0.73 for $\sim$2\,h with waiting 1--9, restore share decaying 0.64 to
+0, KV occupancy draining to 0.05, and complete recovery by the end
+of the 300-min horizon \evid{R5}. The same-day untiered run at the same
+operating point collapsed via the delayed mechanism at $\sim$minute 240
+\evid{R3}\evid{R5}. This is one matched same-day pair, $n=1$ per side: it
+demonstrates that the tier can convert a collapsing boundary point
+into a complete recovery in at least one run, and supports no
+recovery-probability claim at 0.020.
+
+\subsection{The size series: capacity sets persistence}
+\label{sec:sizeseries}
+
+Same-protocol runs at ($N{=}8$, 0.022) across configured tier sizes
+\evid{R11}:
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{0.17\columnwidth}p{0.23\columnwidth}p{0.42\columnwidth}@{}}
+\toprule
+size (effective) & outcome count & note \\
+\midrule
+250 (0.42M) & cold collapse 1/1 & enters congestion, then falls through it: tier-hit fraction decays to 0.01 as the working set outgrows the tier \\
+375 (0.63M) & complete recovery 2/2 & one run at elevated realized rate (2.02 requests/s) \\
+500 (0.84M) & 4 congested, 2 complete recoveries, of 6 & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The series separates the two mechanisms of Section~\ref{sec:tier-theory}. Tier
+capacity - the varied parameter - sets regime persistence: a tier
+too small to hold the recirculating working set loses its external
+hits and falls through congestion into the cold state, and the
+250/375 contrast brackets the persistence boundary exactly where
+rule~\eqref{eq:ccpustar} places it (0.4--0.7M tokens per replica). The
+congested-state throughput level is the pinned restore band of
+Sections \ref{sec:congestion}--\ref{sec:pinnedband}. Restore bandwidth itself was not varied, so its
+effect on persistence is unmeasured. The 375-versus-500 contrast
+(2/2 vs 2/6 complete recoveries) suggests a mild size effect but
+leaves it unproven at these counts. Realized request rate does not
+order outcomes across the series \evid{R11}.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{overlay_tiercap.png}
+\caption{Tier-capacity pair at ($N{=}8$, 0.022): measured size-250 and
+size-500 trajectories with DES capacity-sweep bands (model output,
+Section~\ref{sec:models}). The DES reproduces the direction and the
+cold-persistence boundary of the pair - 250 falling through to cold,
+500 staying congested - but produces no complete recoveries at this
+rate; the recovery branch is a documented model failure
+(Section~\ref{sec:failures}).}
+\label{fig:tiercap}
+\end{figure}
+
+The executable size series ends at configured size 500: size 650
+does not boot on these hosts (the pinned tier plus an uncapped
+sidecar file cache exceeds node-allocatable memory), so no statement
+is made about larger tiers \evid{R11}.

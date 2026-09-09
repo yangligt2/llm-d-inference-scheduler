@@ -1,0 +1,134 @@
+% OSDI submission draft, generated from paper/draft2.md (2026-08-26).
+%
+% Draft-2 provenance note (carried from draft2.md): theory added as
+% Section 3, evidence grading made explicit (Section 4.5, Appendix A),
+% agentic framing in title/abstract/introduction. Quantitative claims
+% are carried over from draft.md unchanged and remain audited against
+% research-status.md and paper/claims-map.md. Internal evidence markers
+% [R<n>] (research-status result) and [C<nn>] (claims-map row) are
+% retained for auditability and are removed at camera-ready: blank the
+% \evid macro in macros.tex. Literature citations resolve in
+% references.bib. Figure images live under kv_equilibrium/out/
+% (composites under out/paper/, generators kv_equilibrium/fig_*.py,
+% fig_theory.py, and mitigation.py).
+%
+% Terminology map (draft-internal; each symbol is defined in the text
+% at first use). h: prefix-cache hit rate (token-weighted unless
+% stated). lambda_s: session arrival rate in sessions/s; lambda_r =
+% lambda_s * E_req: request rate. N: replica count spanned by one
+% router instance; operating points are written (N, lambda_s).
+% Capacity-normalized rate: lambda_8 = lambda_s * 8 / N, the rate
+% normalized to the 8-replica reference fleet. D: drain depth, the
+% fleet-mean KV-pool occupancy over minutes 115-120 of the protocol
+% (defined in Section 5.5). Untiered: no host-memory KV tier. Tier
+% sizes are configured units 250/375/500 with effective capacities
+% 0.42/0.63/0.84M tokens per replica (Section 8.2). Outcome classes:
+% recovery, immediate collapse (onset during or just after the
+% post-surge drain), delayed collapse (onset near minute 240 with no
+% new perturbation), and complete recovery of a tiered fleet. Former
+% internal terms map as: "draw" -> run; "arc" -> trajectory; "arm" ->
+% configuration; "kv115" -> drain depth D; "8x-0.020" -> (N=8,
+% lambda_s=0.020); "organic" -> delayed; "heal" -> complete recovery.
+
+\documentclass[letterpaper,twocolumn,10pt]{article}
+\usepackage{usenix2019_v3}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+
+\graphicspath{{../../out/}{../../out/paper/}}
+
+\input{macros}
+
+\begin{document}
+
+%-------------------------------------------------------------------------
+\date{}
+
+\title{\Large \bf Metastable Prefix-Cache Collapse in Agentic LLM Serving}
+
+% OSDI submissions are anonymized; replace with authors at camera-ready.
+\author{
+{\rm Anonymous submission}\\
+Paper \#XXX
+}
+
+\maketitle
+
+%-------------------------------------------------------------------------
+\begin{abstract}
+Agentic workloads change the physics of LLM serving. Coding agents
+carry contexts of 50k--250k tokens dominated by a shared growing
+prefix, issue their next request the moment the previous one returns,
+and defer rather than abandon under slowdown. For such workloads the
+prefix cache is not a latency optimization but a state variable the
+fleet's capacity depends on: a request whose prefix is cached
+prefills only its increment, while a miss re-prefills the full
+context and writes it back into the same finite pool it missed in,
+evicting other sessions' prefixes. On the trace-calibrated workload
+of this paper one miss writes as much cache as twenty-two hits.
+
+We show that this feedback makes multi-replica serving metastable,
+by measurement, theory, and calibrated simulation. Replaying agentic
+coding traces on TP4 GB200 fleets of 4--16 replicas serving
+Qwen3-Coder-480B FP8, a transient load surge drives the fleet into a
+cold absorbing state: hit rate 0.94 to 0.02--0.03, median TTFT near
+240\,s, no recovery over horizons up to 300 minutes, sustained by the
+same base load the fleet previously served warm - and recovery
+requires shedding demand well below that load (hysteresis). The
+transition is probabilistic: across repeated identical runs,
+intermediate rates split between recovery, immediate collapse, and a
+delayed collapse that only 300-minute horizons reveal. A host-memory
+KV tier transforms the failure rather than removing it, producing a
+third regime in which hit rate stays high while a saturated restore
+channel bounds throughput and the queue slowly diverges; tier
+capacity determines whether this regime persists, falls through to
+cold collapse, or fully recovers. Collapse probability also grows
+with router span: at matched per-replica load a single 16-replica
+router shifts the collapse boundary to lower rates, and every
+16-replica collapse is fleet-total while independent 8-replica
+routers contain every collapse inside one shard. A first-order
+theory - a retention fixed point closed by an occupancy-and-queueing
+feedback - locates the band, the minimum tier capacity, and the
+restore-bound throughput, each within tens of percent of
+measurement, and a fluid model plus discrete-event simulation
+sharing one measured calibration (one fitted constant) reproduce the
+band, the congested-regime discriminators, and the direction of the
+span shift emergently. The theory also implies a mitigation:
+basin-aware deferral of new sessions, the admission abstraction of
+asynchronous serving. In the calibrated model it converts the
+deterministic-collapse point into recovery in 4 of 5 seeds while
+serving strictly more requests than the uncontrolled fleet, and
+under a persistent surge it is the only controller of four screened
+that holds the fleet warm - AIMD concurrency control and
+delay-based early rejection act on signals that fire only after the
+basin boundary is crossed. The collapse band itself reproduces
+under emulations of two third-party routing policies, so the
+failure belongs to the affinity-load feedback family, not one
+implementation. We report the model's failure to reproduce
+tiered-fleet complete recoveries as an open problem.
+\end{abstract}
+
+%-------------------------------------------------------------------------
+\input{sections/01-introduction}
+\input{sections/02-related}
+\input{sections/03-theory}
+\input{sections/04-methodology}
+\input{sections/05-phenomenology}
+\input{sections/06-tier}
+\input{sections/07-span}
+\input{sections/08-models}
+\input{sections/09-mitigation}
+\input{sections/10-implications}
+\input{sections/11-limitations}
+
+%-------------------------------------------------------------------------
+\bibliographystyle{plain}
+\bibliography{references}
+
+%-------------------------------------------------------------------------
+\appendix
+\input{sections/appendix-claims}
+
+\end{document}

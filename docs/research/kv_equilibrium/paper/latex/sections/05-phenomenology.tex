@@ -1,0 +1,225 @@
+\section{Collapse phenomenology (untiered fleets)}
+\label{sec:collapse}
+
+\subsection{Anatomy of an absorbing collapse}
+\label{sec:anatomy}
+
+After the standard surge on an 8-replica untiered fleet at base rate
+0.022 sessions/s, the system does not return to its pre-surge
+operating point. It enters a cold state with hit rate $h$ 0.016--0.030
+(pre-surge warm $h \sim 0.94$), TTFT p50 rising to 240\,s, queue growth
+$\sim$1.1 requests/min to a waiting depth of 289, and throughput pinned
+at 1.2--1.4 requests/s - the cold-branch service bound $\mu(0)$ of
+Section~\ref{sec:occupancy}. No recovery occurs over the observed post-surge
+horizons ($n=3$ runs; $\sim$73 post-surge minutes on the two 180-min
+horizons, 195 on the 300-min horizon) \evid{R1}\evid{C01}. The state is
+self-sustaining: the surge process no longer exists after
+cancellation, and the base load that the same fleet served warm
+before the surge maintains the collapse indefinitely on the measured
+horizon.
+
+The mechanism visible in the measured trajectories is the
+drain-versus-catch-up race of Section~\ref{sec:occupancy}. The surge evicts the base
+sessions' prefixes. After cancellation, the deferred base reservoir
+drains back as catch-up flux; if that flux exceeds the cold-branch
+service capacity before prefixes re-warm, misses regenerate the
+eviction pressure and the fleet locks into the cold state \evid{R1}\evid{R2}.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_arcs_composite.png}
+\caption{Measured trajectories, one per regime class, under the
+identical eviction-scale surge (shaded, $t{=}62$--107\,min); all curves
+are 5-min windows from per-replica scrapes, no model output. Warm
+recovery at ($N{=}8$, 0.017): $h$ returns to $\sim$0.95, waiting $\sim$0. Absorbing
+collapse at ($N{=}8$, 0.022) untiered: $h$ 0.013--0.030 after minute 200,
+waiting climbing $\sim$1.4/min to $\sim$290 by minute 290. Delayed collapse at
+($N{=}8$, 0.020) untiered: warm until $h$ falls from 0.89 at minute 240 to
+0.05 by minute 280. Restore-bound congestion at ($N{=}8$, 0.022) with
+the size-500 tier: $h$ 0.65--0.77 with tier-hit fraction 0.62--0.75
+(dashed) and linear waiting growth $\sim$0.8/min. Complete recovery at
+($N{=}8$, 0.022) with the size-375 tier: $h$ 0.97, waiting $\sim$0 at minute
+300.}
+\label{fig:arcs}
+\end{figure}
+
+\subsection{The collapse-probability band}
+\label{sec:band}
+
+The identical perturbation applied across base rates yields a
+probability band, not a threshold line. Outcome counts over 17 runs
+\evid{R2}\evid{C02}:
+
+\begin{center}
+\small
+\begin{tabular}{@{}llp{0.52\columnwidth}@{}}
+\toprule
+$\ls$ (sessions/s) & runs & outcome \\
+\midrule
+0.012 & 2 & recovers 2/2 \\
+0.017 & 4 & recovers 4/4 (150--180-min horizons; post-surge KV occupancy 0.40--0.78 across runs) \\
+0.020 & 8 & three outcome classes: recovery $\times$3, delayed collapse $\times$2 (cold by $\sim$min 240), immediate collapse $\times$3 (onset min $\sim$130--150); collapse 5/8 by 300\,min \\
+0.022 & 3 & collapses 3/3 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Up to these $n$, the counts place the deterministic-collapse edge in
+(0.020, 0.022]. These are outcome counts; no continuous
+$p(\text{collapse} \mid \text{rate})$ curve is fitted to them. Among the 0.020 runs,
+realized request rate does not order outcomes: one immediate
+collapse occurred at realized 1.62 requests/s while one recovery
+held at 1.78 \evid{R2}\evid{C04}. The band sits where Section~\ref{sec:breakpoints} places it:
+above the cold-feasibility bound~\eqref{eq:coldbound} at 0.0098 sessions/s, well
+below the warm-capacity limit, in the region where both branches are
+locally stable and entry is fluctuation-decided.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_band_tally.png}
+\caption{Outcome counts under the identical perturbation on the
+8-replica untiered fleet at four base rates ($n=17$ runs): 0.012
+recovers 2/2 and 0.017 recovers 4/4; 0.020 is bimodal over 8 runs
+with recovery $\times$3, delayed collapse $\times$2, and immediate collapse $\times$3
+(collapse 5/8 by 300\,min); 0.022 collapses 3/3, placing the
+deterministic-collapse edge in (0.020, 0.022].}
+\label{fig:bandtally}
+\end{figure}
+
+Two threshold axes are each indicated by one measured contrast pair
+\evid{R2}\evid{C03}. On the duration axis, at 0.022 the 900\,s surge recovered
+while the 2700\,s surge collapsed - consistent with the
+reservoir-depth reading of Section~\ref{sec:breakpoints} (both surges fully evict the
+pool; the longer one accumulates a six-fold deeper deferred
+reservoir); a single 900\,s recovery is also consistent with chance
+under any collapse probability materially below one. On the flux
+axis, a rate-0.017 run served 4.9 requests/s of post-cancellation
+catch-up traffic and stayed warm, while a rate-0.022 run re-entered
+collapse at 4.8: the instantaneous catch-up rate does not
+discriminate outcomes; the sustained arrival flux $\ls$ against
+drain headroom does. No response curve is claimed on either axis.
+
+\subsection{Horizon dependence, delayed collapse, and hysteresis}
+\label{sec:horizon}
+
+Surviving the perturbation does not imply long-term stability. At
+($N{=}8$, 0.020), 2 of 8 runs that survived the surge and re-warmed
+collapsed near minute 240 with no new perturbation: session
+deepening gradually raises KV occupancy until it pins, and
+per-replica pinning is near-synchronous (2 of 8 replicas to 8 of 8
+within one 5-min window) \evid{R3}\evid{C05}. This delayed class is visible
+only at the 300-min horizon; 60--180-min runs overstate stability at
+this operating point, and the 0.017 row of the band table carries
+the corresponding caveat (its 150--180-min horizons would not see a
+delayed tail if one exists). In the theory's terms, the warm
+equilibrium at this operating point sits close enough to the
+separatrix that endogenous occupancy drift can cross it without any
+exogenous trigger.
+
+The cold state exhibits hysteresis. The same fleet that serves the
+base load warm cannot re-warm from cold at that load, and recovery
+requires dropping demand below the band's lower edge; in the
+closed-loop experiments, each in-flight level has a unique
+equilibrium and recovery occurs when the in-flight credit is lowered
+\evid{R1}\evid{R8}\evid{C06}. The collapse is therefore a coexistence-band
+phenomenon, not a capacity shortfall: the warm and cold branches
+coexist at the same demand, as the theory's asymmetry argument
+predicts (Section~\ref{sec:breakpoints}) - eviction runs on the pool-overwrite
+timescale while re-warming runs on real time.
+
+\subsection{The closed-loop contrast}
+\label{sec:closedloop}
+
+Closed-loop (completion-gated) arrivals self-stabilize instead of
+collapsing. The measured boundary sits at achieved in-flight $\sim$73
+warm versus $\sim$103+ degraded; degraded states are stationary rather
+than absorbing; and the throughput function shows a flat segment
+with cap-and-window co-movement (its falling segment is unreachable
+statically and was not observed) \evid{R8}\evid{C07}. Absorbing collapse
+requires demand that does not yield to backpressure: either
+inelastic request-pinned generation or a deferred session reservoir
+whose refill outpaces its drain \evid{R7}\evid{C07}. The open-loop
+session-arrival protocol realizes the second condition - which is
+also the condition agentic workloads realize in production. This
+contrast locates the boundary between the queueing-stability
+literature's assumptions (Section~\ref{sec:related}) and the regime where the
+prefix-cache feedback dominates.
+
+\subsection{The drain-depth separatrix}
+\label{sec:separatrix}
+
+The post-cancellation race has a measurable state variable: the
+drain depth $D$, the fleet-mean KV-pool occupancy over minutes 115--120
+of the protocol, the five-minute window opening eight minutes after
+surge cancellation \evid{separatrix-findings.md}. $D$ is the empirical
+coordinate of the separatrix of Section~\ref{sec:occupancy} (Figure~\ref{fig:fixedpoint}b): a shallow
+drain (high $D$) means catch-up flux re-inflated the pool before
+prefixes re-warmed, and the race is already lost when the window
+closes.
+
+At ($N{=}8$, 0.020), $D$ separates immediate collapse from all other
+outcomes in all 8 runs (two of the five non-immediate runs later
+collapse via the delayed mechanism): immediate-collapse minimum
+0.735, other-outcome maximum 0.663 \evid{R15}\evid{C08}. The $D$ reading
+precedes erosion onset in 20 of 21 fitted runs, and the same
+occupancy read five minutes earlier does not separate (one survivor
+read 0.674 mid-drain), so minute 115 is the earliest clean read
+point.
+
+Across the 21 fitted standard-surge runs (10 collapse events; one
+16-replica run is excluded because its surge backlog was still
+pinned at the read point and its horizon ends at 135\,min), a
+Firth-penalized logistic fit of $p(\text{immediate} \mid D, \text{rate})$ gives $D$
+signal beyond rate (penalized likelihood-ratio $p \sim 0.044$). The exact
+stratified permutation test over the two mixed-outcome strata gives
+one-sided $p = 3/112 = 0.027$. The signal is borne by the 8-replica
+stratum: within ($N{=}8$, 0.020) the three immediate collapses hold
+exactly the three highest $D$ values ($p = 1/56 = 0.018$), while the
+$n=2$ 16-replica stratum at 0.037 is anti-aligned (the collapsing run
+drained deeper than the surviving one) \evid{R15}\evid{C08}
+\evid{out/separatrix\_draws.csv, separatrix\_fit.py}. The within-stratum
+test treats the two dedicated-fleet runs and the six shard runs as
+exchangeable; the two delayed collapses are exactly the two
+dedicated-fleet runs, and the conservative shard-only form gives
+$p = 1/20$. The fitted $p{=}0.5$ thresholds are $D^* = 0.79$, 0.69, 0.63 at
+capacity-normalized rates 0.017, 0.020, 0.022; the 0.020 value sits
+inside both the within-stratum separation interval (0.663, 0.735)
+and the pooled 8-replica interval across all three rates. At $n=21$
+the threshold's direction and location are established, its
+steepness is not (the $D$ coefficient's Wald 95\% interval spans
+roughly (1, 39)). $D$ also orders the collapse-onset spectrum: among
+the 12 fitted collapsing runs, pooled across fleet sizes, rates, and
+collapse classes (all of which co-vary with $D$ and onset), the rank
+correlation between $D$ and onset time is $-0.99$ - shallower drains
+collapse earlier. The covariate was identified mid-campaign, so
+these $p$-values are not from a pre-registered test; the three runs
+measured after identification landed on the hypothesized sides of
+the threshold.
+
+Two scope limits bound the claim. First, the threshold moves with
+rate and fleet size: at $N{=}16$, the 0.034 point survived $D = 0.74$ and
+a 0.037 run collapsed from 0.65, each a single-run point observation
+\evid{R15}\evid{C09} - as expected if $D$ is one coordinate of a separatrix that
+also depends on rate and span, not a universal constant. Second, $D$
+does not predict the delayed class: those runs win the drain race
+from deep drains ($D$ 0.616 and 0.663) and collapse $\sim$2\,h later by the
+distinct occupancy-drift mechanism of Section~\ref{sec:horizon} \evid{R15}\evid{C09}. $D$ is a
+mediating observable of the drain race, not a control law. In the
+pooled fit it is confounded with the $N{=}16$ indicator at $n=21$, because
+every 16-replica run at the 0.020-equivalent point both drained
+shallow and collapsed; the mediation interpretation rests on the
+within-stratum permutation test and the model comparison of
+Section~\ref{sec:models} \evid{C08}.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{separatrix_fit.png}
+\caption{Drain-depth separatrix. $D$ (fleet-mean KV occupancy,
+minutes 115--120) versus capacity-normalized rate for the 21 fitted
+runs, marked by outcome class; the line is the Firth-penalized
+$p(\text{immediate}) = 0.5$ contour ($D^* = 0.79/0.69/0.63$ at
+0.017/0.020/0.022). The two delayed collapses sit at the deep end
+and are not predicted by $D$; the 16-replica points illustrate the
+threshold's span dependence.}
+\label{fig:separatrix}
+\end{figure}

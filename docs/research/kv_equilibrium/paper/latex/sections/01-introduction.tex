@@ -1,0 +1,167 @@
+\section{Introduction}
+\label{sec:intro}
+
+Serving is entering an agentic regime. A coding agent's request
+stream is unlike chat traffic in three ways that matter for the
+serving substrate. First, its context is large and grows: on the
+393-session corpus used throughout this paper, sessions open with a
+$\sim$52k-token system prompt, add a few thousand tokens per tool-call
+turn, and run to a 249k-token compaction ceiling, for a mean
+re-prefilled context of $\sim$117k tokens. Second, its arrival process is
+completion-coupled at machine pace: 78\% of turns arrive within
+seconds of the previous turn's completion, because a tool loop
+resumes the moment its result returns. Third, its demand does not
+yield: an agent whose request is delayed does not leave; it waits
+and retries, so slowdown converts offered load into a deferred
+reservoir rather than into abandonment. Under this regime the prefix
+cache stops being an optimization. With a warm cache a turn prefills
+only its few-thousand-token increment; with a cold one it re-prefills
+the full context, a factor-of-27 difference in service demand on this
+workload. The cache is therefore load-bearing state, and its dynamics
+deserve the same stability analysis given to queues.
+
+Those dynamics contain a feedback loop. A miss re-prefills the full
+context and writes the resulting KV blocks back into the same finite
+pool it missed in, evicting other sessions' prefixes; on this
+workload the write amplification - cache written by a miss versus by
+a hit - is 22.6. The effective service rate is thus a function of the
+hit rate, and the hit rate is a function of the eviction pressure the
+service process itself generates. Feedback of this shape is the
+defining structure of metastable failures in distributed systems
+\cite{bronson2021metastable,huang2022wild}: a trigger displaces the
+system into a degraded state, and a sustaining effect keeps it there
+after the trigger is gone.
+
+This paper measures that failure at multi-replica scale, derives its
+structure, and models it quantitatively. On 8-replica TP4 GB200
+fleets serving a 480B-parameter model under open-loop agentic trace
+replay, a 45-minute load surge at base rate $\ls = 0.022$
+sessions/s drives the fleet into a cold state that persists as long
+as we observe it: $h$ falls to 0.016--0.030 from 0.94 warm, TTFT p50
+rises to 240\,s, and no recovery occurs over 73 to 195 post-surge
+minutes across three runs, sustained by the same base load the fleet
+served warm before the surge (Section~\ref{sec:anatomy}) \evid{C01}. The identical
+perturbation applied across base rates yields a probability band
+rather than a threshold: 0.017 sessions/s always recovers, 0.022
+always collapses, and 0.020 splits across three outcome classes,
+including two runs that collapse near minute 240 with no new
+perturbation - so benchmark horizons shorter than roughly 300
+minutes overstate stability at boundary operating points \evid{C02}\evid{C05}.
+The cold state exhibits hysteresis: the fleet cannot re-warm from
+cold at a load it serves comfortably warm, and recovery requires
+shedding demand below the band's lower edge \evid{C06}. An absorbing
+degraded state, probabilistic entry, and hysteretic exit are the
+metastable-failure signature, here with full-context re-prefill as
+the sustaining effect - and the deferred-reservoir demand that makes
+the state reachable is precisely the agentic arrival structure
+(Section~\ref{sec:closedloop}).
+
+Two system parameters reshape the failure in ways that are, to our
+knowledge, unmeasured elsewhere. First, a host-memory KV tier does
+not remove the failure; it transforms it into a third regime,
+restore-bound congestion, in which the fleet holds a high hit rate
+while the host-to-device restore channel pins near its
+congested-state throughput and the queue diverges slowly (Section~\ref{sec:tier})
+\evid{C10}. Tier capacity - the one parameter the tier series varies -
+determines whether that regime persists, falls through to cold
+collapse, or completely recovers (Section~\ref{sec:sizeseries}) \evid{C13}; restore
+bandwidth was not varied, and its effect on persistence is
+unmeasured. In one matched same-day pair at the 0.020 boundary, the
+tier converted a collapsing operating point into a complete
+self-recovery \evid{C12}. Second, collapse probability depends on the
+number of replicas a single router instance spans, at fixed
+per-replica load and fixed per-replica physics. The 16-replica
+collapse curve sits left of the 8-replica curve: the mixed-outcome
+point moves from 0.020 to 0.0185 in capacity-normalized rate,
+roughly 7.5\%, though the edge brackets bound the shift only loosely
+(0 to $\sim$16\%). Every measured 16-replica collapse is fleet-total,
+while independent 8-replica shard routers contained every collapse
+inside the failing 8-replica partition (Section~\ref{sec:span}) \evid{C15}\evid{C16}\evid{C18}.
+In one measured run ($n=1$), a router configuration carrying no
+affinity signal ran warm at $h$ 0.53 versus 0.94 and collapsed after
+the surge with no recovery phase \evid{C22}: routing affinity carries
+both the warm margin and the recovery path.
+
+The measurements are organized by a first-order theory (Section~\ref{sec:theory}).
+The classical characteristic-time analysis of LRU caches, closed
+with the miss-write feedback, yields a retention fixed point whose
+write amplification (22.6 here) is the feedback strength; a second
+feedback through pool occupancy and queueing delay creates the cold
+branch under this workload's reuse gaps; and the resulting
+closed-form estimates land within tens of percent of measurement:
+the cold-state service bound within $\sim$15\% of the measured cold
+throughput, the minimum-tier-capacity rule bracketing the measured
+persistence boundary, and the restore-channel bound matching the
+measured congested throughput. The theory also explains why outcomes
+inside the band are frequencies rather than responses: both branches
+are locally stable there, and entry is decided by fluctuations
+relative to a separatrix whose empirical coordinate - the
+post-perturbation drain depth $D$ - we measure directly (Section~\ref{sec:separatrix}).
+
+We accompany the theory with a fluid model and a discrete-event
+simulation (DES) sharing one calibration in which every constant is
+measured or read from deployed configuration except a single fitted
+scale, the effective tier capacity (Section~\ref{sec:models}) \evid{C25}. The DES
+implements the deployed router algorithm with no coordinator term
+and no replica-count term. It reproduces the band, all four
+congested-regime discriminators in 5 of 5 seeds, and the direction
+of the span shift emergently \evid{C26}. Both model collapse curves sit
+left of the measured ones, a documented reservation bias, so the
+model's quantitative claim is the shift and the outcome-class
+structure, never absolute collapse probabilities \evid{C27}. The model's
+recovery branch is a documented failure: it produces zero complete
+recoveries where the hardware produced four at the same operating
+point. We report the failure, four screened candidate mechanisms,
+and the surviving suspect, rather than tuning the discrepancy away
+(Section~\ref{sec:failures}) \evid{C30--C32}.
+
+Contributions:
+
+\begin{itemize}
+\item A first-order theory of prefix-cache metastability: the retention
+  fixed point with miss-write amplification, the occupancy-queueing
+  feedback that creates the cold branch, closed-form break-point and
+  minimum-tier-capacity estimates each anchored to a measured
+  quantity, and the dimensionless groups that organize the regimes
+  (Section~\ref{sec:theory}).
+\item Measured absorbing collapse in multi-replica prefix-cached serving
+  (fleets up to 16 replicas), with a collapse-probability band,
+  three outcome classes, horizon dependence, and hysteresis
+  (Section~\ref{sec:collapse}) \evid{C01--C07}.
+\item A drain-depth separatrix: post-perturbation KV occupancy $D$
+  separates immediate collapse from other outcomes in all 8 runs at
+  the boundary point and adds signal beyond rate over 21 runs,
+  presented as a mediating observable with stated confounds
+  (Section~\ref{sec:separatrix}) \evid{C08--C09}.
+\item The host-tier third regime, restore-bound congestion, and a
+  tier-size series showing that capacity sets regime persistence
+  while the pinned restore channel sets congested-state throughput
+  (Section~\ref{sec:tier}) \evid{C10--C14}.
+\item Router-span dependence of collapse probability, with config
+  independence, refutation of load-imbalance and (for the measured
+  router) coordinator-saturation mechanisms, an affinity-necessity
+  ablation, shard containment, and per-replica scatter signatures
+  (Section~\ref{sec:span}) \evid{C15--C24}.
+\item A calibrated fluid+DES model with a deployed-router layer, the
+  emergently reproduced span-shift direction, executed falsifiers
+  reported regardless of outcome, and documented failures
+  (Section~\ref{sec:models}) \evid{C25--C32}.
+\item A model-level mitigation screen: basin-aware admission deferral,
+  derived from the separatrix, prevents collapse in both protocols
+  and dominates AIMD and early-rejection baselines under a
+  persistent surge; plus router-policy emulations showing the
+  collapse band is a property of the affinity-load feedback family
+  (Section~\ref{sec:mitigation}).
+\end{itemize}
+
+Every claim in the paper carries an evidence grade (Section~\ref{sec:grading};
+Appendix~\ref{sec:claims} gives the full register): measured facts, outcome
+frequencies with their counts, model-supported statements, and open
+problems are typographically and rhetorically separated, and no
+single-run observation supports a probability, threshold, or trend.
+All measurements come from one stack - one model, one corpus family,
+one router implementation, GB200 TP4 fleets - and numeric thresholds
+are scoped to it. The mechanism itself requires only an LRU prefix
+cache, full-context re-prefill on miss, and demand that defers
+rather than abandons (Section~\ref{sec:theory}), and we state which conclusions
+rest on the mechanism versus on the stack (Section~\ref{sec:limitations}).

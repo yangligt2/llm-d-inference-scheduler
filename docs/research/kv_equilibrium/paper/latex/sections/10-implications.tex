@@ -1,0 +1,45 @@
+\section{Operational implications}
+\label{sec:implications}
+
+Each statement below restates a measured result; the controllers of
+Section~\ref{sec:mitigation} are model-tested only, no controller has been validated on
+hardware, and no numeric threshold transfers beyond the measured
+stack.
+
+\begin{itemize}
+\item Horizon rule. Benchmarks shorter than $\sim$300\,min overstate stability
+  at boundary operating points: 2 of 8 surviving runs at
+  ($N{=}8$, 0.020) collapsed by the delayed mechanism near minute 240,
+  past every 60--180\,min window (Section~\ref{sec:horizon}) \evid{R3}.
+\item Routing affinity is a stability parameter, not a latency
+  parameter. In the one measured run ($n=1$), the load-only
+  configuration ran warm at $h$ 0.53 versus 0.94 and collapsed after
+  the surge with no recovery phase (Section~\ref{sec:affinity}) \evid{R14}.
+\item Router span is a blast-radius parameter. Every measured 16-replica
+  collapse was fleet-total; independent 8-replica shard routers
+  contained every collapse inside the failing partition
+  (Section~\ref{sec:shards}) \evid{R10}. Sharding is a measured containment boundary.
+\item Drain-depth observables are early-warning candidates. $D$ separates
+  immediate collapse from other outcomes in all 8 runs at the
+  boundary point and adds signal beyond rate over 21 runs
+  (Section~\ref{sec:separatrix}) \evid{R15}. $D$ is a mediating observable whose threshold
+  moves with rate and span and which does not predict the delayed
+  class; unlike a fixed-constant admission threshold
+  \cite{chen2026concur}, deployment use would require local (rate, $N$)
+  calibration.
+\item Tier sizing is a persistence decision, not only a hit-rate
+  decision. At ($N{=}8$, 0.022) the smallest tier falls through
+  congestion to cold collapse ($n=1$) while the two larger sizes never
+  go cold in 8 runs (Section~\ref{sec:sizeseries}); capacity sets regime persistence
+  per rule~\eqref{eq:ccpustar}, and the pinned restore channel sets congested-state
+  throughput per bound~\eqref{eq:murestore}, with restore bandwidth itself unvaried
+  \evid{R11}.
+\end{itemize}
+
+One model-supported implication (Section~\ref{sec:mitigation}, not measured): admission
+control for this failure should key on basin coordinates - KV
+occupancy and backlog depth - and defer rather than reject.
+Controllers keyed on the collapse symptoms themselves (hit rate,
+queueing delay) engaged only after the basin boundary was crossed in
+the model screen, and rejection spent permanent losses at operating
+points that mostly recover unaided.

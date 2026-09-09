@@ -1,0 +1,317 @@
+\section{A theory of prefix-cache metastability}
+\label{sec:theory}
+
+This section derives the failure structure that Sections \ref{sec:collapse}--\ref{sec:span}
+measure: a retention fixed point coupling hit rate to write rate
+(\ref{sec:retention}), the occupancy-and-queueing feedback that creates the cold
+branch under this workload's reuse gaps (\ref{sec:occupancy}), first-order
+break-point and tier-sizing estimates, each checked against a
+measured quantity (\ref{sec:breakpoints}--\ref{sec:tier-theory}), and the dimensionless groups that
+organize the regimes (\ref{sec:dimensionless}). The theory is deliberately first-order:
+it predicts the existence, location, and scaling of the regimes; the
+calibrated simulation of Section~\ref{sec:models} carries the quantitative claims.
+
+\paragraph{Notation.} $N$ replicas each hold an HBM KV pool of $C$ tokens under LRU
+block eviction (fleet pool $S = N \cdot C$) and optionally a host-memory
+tier of $\Ccpu$ tokens per replica; $p$ is the per-replica prefill rate
+and $\Br$ the effective per-replica restore rate (tokens/s). Sessions
+arrive at rate $\ls$ and issue $\Ereq$ requests over their
+lifetime, so the long-run request rate is $\lr = \ls \cdot \Ereq$.
+A request with context $c$ prefills its new input $\delta$ on a
+hit and $c + \delta$ on a miss, and appends its output to the cache
+either way. $F(t)$ is the reuse-gap distribution: the probability that
+a session's next request arrives within $t$ seconds of its predecessor
+becoming reusable. Calibrated values for the measured stack ($N = 8$,
+$C = 1.66$M tokens, $S = 13.28$M, $p = 17$k tokens/s, $\Ereq = 118$, reuse
+gaps capped at 10.5\,s by the protocol): mean write per miss
+$\wmiss = 117.8$k tokens, mean write per hit $\whit = 5.2$k, mean
+prefill per miss $\cmiss = 116.9$k (workload functionals derived from
+the trace-calibrated spec; Section~\ref{sec:calibration}).
+
+\subsection{The retention fixed point}
+\label{sec:retention}
+
+An LRU cache under aggregate write rate $W$ retains an entry for the
+characteristic time $T = S / W$: new writes traverse the pool in $T$
+seconds, and an entry survives if touched again within that window
+\cite{che2002hierarchical,fricker2012versatile}. In a prefix cache, $W$ is
+not exogenous. At hit rate $h$,
+\begin{equation}
+W(h) = \lr \left[ (1 - h)\, \wmiss + h\, \whit \right],
+\label{eq:writerate}
+\end{equation}
+and the hit rate is set by whether entries survive their reuse gaps:
+\begin{equation}
+h^* = F\!\left( S / W(h^*) \right).
+\label{eq:fixedpoint}
+\end{equation}
+Equation~\eqref{eq:fixedpoint} is the classical characteristic-time fixed point with
+one addition outside its assumptions: the write rate depends on the
+hit rate it produces. The coupling strength is the write
+amplification
+\begin{equation}
+A = \wmiss / \whit = 22.6:
+\label{eq:amp}
+\end{equation}
+one miss evicts as much cache as twenty-two hits. Because $W$ falls as
+$h$ rises, the map $\Phi(h) = F(S / W(h))$ is increasing, and an
+increasing map can cross the identity more than once: a warm fixed
+point (high $h$, low write pressure, long retention) and a cold one
+(miss writes flooding the pool, retention too short to hit) can
+coexist at the same offered load, separated by an unstable crossing.
+Coexistence appears and disappears at the tangency (saddle-node)
+condition $\Phi(h) = h$, $\Phi'(h) = 1$. For a two-point reuse-gap mixture
+in which a fraction $x$ of requests return after gaps longer than $y$
+and the rest return quickly, the warm point $h = 1 - x$ exists iff the
+pool covers the long gap at the warm write rate,
+\begin{equation}
+S \geq \lr\, y \left[ x\, \wmiss + (1 - x)\, \whit \right],
+\label{eq:warmexists}
+\end{equation}
+which inverts to a closed-form collapse edge in load and a matching
+recovery edge with the write mix evaluated on the cold branch.
+Whether retention feedback alone produces coexistence depends on
+where $S / W(0)$ lands in $F$: it must land inside $F$'s central mass. In
+a capacity-starved production configuration we analyzed before this
+campaign (8 replicas, 0.95M-token pools, 130k-token mean contexts,
+$\sim$10 requests/s), $S / W(0) = 11.6$\,s against think times of tens of
+seconds, and \eqref{eq:writerate}--\eqref{eq:warmexists} alone give a coexistence band. On the measured
+stack of this paper the pools are larger and the protocol caps reuse
+gaps at 10.5\,s, so $S / W(0) = 43$--$80$\,s at the studied loads sits far
+above every gap: equation~\eqref{eq:fixedpoint} then has a single warm solution at
+every studied rate, and no static retention argument can produce the
+cold state that Section~\ref{sec:collapse} measures. That state requires a second
+feedback.
+
+\subsection{The occupancy-queueing feedback and the cold branch}
+\label{sec:occupancy}
+
+Two mechanisms tie the cache to the request queue. First, running
+requests occupy the pool: an admitted request reserves its KV need
+until completion, and admission fills the pool to a watermark $\theta$
+(0.92 in the measured engine) whenever work is waiting. The cache
+lives in the remainder, so under a backlog the retention window is
+\begin{equation}
+\Teff = S\, (1 - \mathrm{occ}) / W(h), \quad \mathrm{occ} \to \theta,
+\label{eq:teff}
+\end{equation}
+a 12.5$\times$ contraction at the watermark. Second, a queued request's
+prefix must survive its reuse gap plus its waiting time $w$, so the
+survival probability is $F(\Teff - w)$. Both corrections vanish in
+light traffic and bite together under a backlog. The service side
+closes the loop: with the prefill engine as bottleneck, the fleet
+serves at
+\begin{equation}
+\mu(h) = N p \,/\, \mathrm{E}[\text{prefill per request at } h],
+\label{eq:mu}
+\end{equation}
+which spans a factor of $\sim$27 between branches: $\mu(\text{warm}) \sim 31$
+requests/s versus $\mu(0) = N p / \cmiss = 1.16$ requests/s. The
+measured cold-state throughput is 1.2--1.4 requests/s \evid{R1}\evid{C01},
+within $\sim$15\% of the $\mu(0)$ estimate (the small excess is the measured
+2--3\% residual hit rate). A backlog therefore sustains itself
+whenever flux into the fleet exceeds $\mu(0)$ while prefixes are cold:
+misses hold the pool pinned and the waits long, which holds the hit
+rate near zero, which holds the service rate at $\mu(0)$.
+
+Figure~\ref{fig:fixedpoint}a shows the structure as a one-step hit-rate map conditioned
+on backlog depth $Q$ at the reference operating point ($N = 8$,
+$\ls = 0.022$): with $Q = 0$ the map is monostable warm (the static
+result of \ref{sec:retention}); at moderate $Q$ it folds and two stable crossings
+coexist; deeper backlogs push the escape threshold - the hit rate a
+fleet must already hold for its cache to outrun its queue - toward
+one. Figure~\ref{fig:fixedpoint}b integrates the joint $(h, Q)$ dynamics through the
+post-perturbation drain window and colors the basins of attraction.
+The basin boundary is the separatrix of the drain-versus-rewarm
+race; the drain-depth observable of Section~\ref{sec:separatrix} is its empirical
+coordinate, KV occupancy read just after the perturbation ends
+telling which side of the boundary the trajectory is on.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_fixed_point.png}
+\caption{Theory constructions at ($N{=}8$, $\ls{=}0.022$), workload
+functionals and constants from the Section~\ref{sec:calibration} calibration; model
+output, no measured data. (a) The one-step hit-rate map $\Phi(u \mid Q)$
+conditioned on backlog depth: monostable warm at $Q = 0$, folded
+(bistable) at $Q = 60$, escape threshold near one at $Q = 150$. (b)
+Basins of attraction of the joint (hit rate, backlog) dynamics
+during the post-perturbation drain window; the basin boundary is the
+separatrix that the drain-depth observable of Section~\ref{sec:separatrix} estimates.
+Time normalization is qualitative (fixed hit-rate relaxation
+constant); the figure shows equilibrium and basin structure, not
+calibrated transit times.}
+\label{fig:fixedpoint}
+\end{figure*}
+
+The demand side determines whether the cold branch is reachable.
+Requests within a session are completion-coupled - a session issues
+its next turn only after the previous returns - so in-flight demand
+defers under slowdown instead of accumulating \evid{R7}\evid{C33}, and a
+closed population self-stabilizes (Section~\ref{sec:closedloop}). What makes the cold
+branch reachable is a demand reservoir that does not yield: sessions
+arriving as an exogenous stream park their next turns while the
+fleet is slow and release them as catch-up flux when service
+resumes. Agentic workloads realize exactly this structure, which is
+why the open-loop session-arrival protocol of Section~\ref{sec:method} - and not a
+classical closed-loop benchmark - exposes the failure.
+
+\subsection{Break-point estimates}
+\label{sec:breakpoints}
+
+\paragraph{Cold-branch feasibility (necessary condition).} A sustained cold
+state requires deferred flux above the cold service rate,
+$\lr > \mu(0)$:
+\begin{equation}
+\ls > N p \,/\, (\cmiss\, \Ereq) = 0.0098 \text{ sessions/s}.
+\label{eq:coldbound}
+\end{equation}
+Below bound~\eqref{eq:coldbound} the backlog drains even with every request missing
+and recovery is unconditional. The measured protocol recovers 2/2 at
+0.012 and 4/4 at 0.017 \evid{C02}, both above the bound - consistent with
+\eqref{eq:coldbound} being necessary rather than sufficient: between the bound and
+the measured entrapment edge at 0.020--0.022, the reservoir drains
+partly serially (completion-coupled), so the effective flux against
+$\mu(0)$ sits below $\lr$ and the race of Figure~\ref{fig:fixedpoint}b is winnable. The
+gap between bound~\eqref{eq:coldbound} and the measured edge is the workload's
+elasticity margin.
+
+\paragraph{Warm-branch feasibility.} The warm branch persists while warm-state
+prefill demand fits, which holds to roughly ten times the studied
+loads (prefill utilization 0.08 at $\ls = 0.022$). The warm
+branch near the band is therefore not destroyed by load; it is
+abandoned. Entry at the studied rates is fluctuation-driven - an
+eviction-scale perturbation (Section~\ref{sec:protocol}), or the slow occupancy
+growth of deepening sessions, carries the state across the
+separatrix - which is why outcomes at fixed operating points are
+frequencies rather than deterministic responses \evid{C02}\evid{C05}, and why
+the coexistence region manifests as hysteresis rather than as a
+capacity wall.
+
+\paragraph{Perturbation scale.} A surge writing at rate $W_s$ evicts parked
+prefixes on the pool-traversal timescale $S (1 - \mathrm{occ}) / W_s$ - under
+two minutes at the measured saturated write rate - so both protocol
+surge durations (900\,s and 2700\,s) evict the pool several times
+over. What the longer surge changes is the reservoir: deferred
+sessions accumulate six times longer and the post-cancellation race
+begins from deeper $Q$. The measured duration contrast (900\,s
+recovers, 2700\,s entraps, same rate) \evid{C03} is a reservoir-depth
+effect, not an eviction-completeness effect, consistent with the
+basin geometry of Figure~\ref{fig:fixedpoint}b.
+
+\paragraph{Asymmetry of the transitions.} Collapse is fast because eviction runs
+on the pool-overwrite timescale (minutes under a surge); recovery is
+slow because cache coverage grows no faster than real time - content
+only becomes $T$ seconds old after $T$ seconds - while every miss along
+the way regenerates eviction pressure. The hysteresis of Section~\ref{sec:horizon}
+is this asymmetry read at steady state.
+
+\subsection{The host tier: capacity sets the regime, restore bandwidth its throughput}
+\label{sec:tier-theory}
+
+A host-memory tier of $\Ccpu$ tokens per replica extends retention.
+The tier ingests only new writes (restored blocks already reside
+there; measured, Section~\ref{sec:congestion}), so its window adds to \eqref{eq:teff}:
+\begin{equation}
+\Ttot = \Teff + N \Ccpu / \Wnew,
+\label{eq:ttot}
+\end{equation}
+with $\Wnew$ the new-write rate. The naive sizing rule - delete the
+cold branch by making $\Ttot(h{=}0)$ exceed the reuse gaps - is
+necessary but not the operative constraint, because a tiered fleet
+under overload never reaches $h = 0$: it settles into the congested
+regime of Section~\ref{sec:tier}, serving hits through the restore channel. Two
+separate quantities govern that regime.
+
+\paragraph{Tier capacity sets persistence.} Under congestion the parked working
+set recirculates: each live session is touched once per
+recirculation time $\trec \sim L / \muc$, with $L$ the live-session count
+and $\muc$ the congested completion rate. A session's tier entry
+survives to its next touch iff the tier window exceeds $\trec$, giving
+the minimum capacity
+\begin{equation}
+\Ccpu^* \sim \Wnew\, \trec / N.
+\label{eq:ccpustar}
+\end{equation}
+At the measured congested point (tier ingest $\Wnew = 50$--78k
+tokens/s \evid{R4}; $\muc = 2.5$--4.3 requests/s over a live population near
+200 sessions, so $\trec \sim 50$--90\,s), rule~\eqref{eq:ccpustar} gives 0.4--0.7M tokens
+per replica - bracketing the measured persistence boundary: the
+0.42M-effective tier loses its external hits and falls through to
+cold collapse, while 0.63M and 0.84M persist \evid{C13}. Below $\Ccpu^*$ the
+tier only delays collapse; above it, the tier converts collapse into
+congestion.
+
+\paragraph{Restore bandwidth sets congested throughput.} Every completion in the
+congested regime re-onboards most of a context through the restore
+channel, bounding completions at
+\begin{equation}
+\murestore = N \Br \,/\, (\hext\, \cmiss) \sim 2.2 \text{ requests/s}
+\label{eq:murestore}
+\end{equation}
+at the measured tier-hit share $\hext \sim 0.7$ and $\Br = 23$k tokens/s,
+against demand of 2.6 requests/s at $\ls = 0.022$. The regime
+therefore runs with its restore channel pinned (measured: 0.81--1.04
+of $N \Br$ \evid{C10}) and its queue diverging slowly (measured:
+$\sim$0.8/min) - the discriminators of Section~\ref{sec:congestion}. $\Br$ is the measured
+congested-state channel throughput, not a hardware ceiling: the two
+measured complete recoveries sustained 1.28--1.51$\times$ this rate during
+escape \evid{C11}, a distinction that matters for the model failure of
+Section~\ref{sec:failures}.
+
+The design consequence is a trade, not a fix: a tier above $\Ccpu^*$
+deletes the cold absorbing state (a capacity cliff) and in exchange
+the overloaded fleet occupies a congested state whose throughput is
+set by restore bandwidth (a bandwidth cliff). Sizing the tier by \eqref{eq:ccpustar}
+without provisioning $\Br$ converts one failure mode into another -
+the central operational finding of Section~\ref{sec:tier}.
+
+\subsection{Dimensionless structure}
+\label{sec:dimensionless}
+
+Five ratios organize the regimes; values at the reference operating
+point ($N = 8$, $\ls = 0.022$, untiered unless stated):
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+$A$ & $\wmiss / \whit$ & 22.6 \\
+$\Lambda$ & $\lr \cmiss / (N p)$ & 2.2 \\
+$G$ & $S (1 - \theta) / (W(0)\, g)$ & $\sim$0.4 \\
+$\kappa$ & $N \Ccpu / (\Wnew \trec)$ & 0.7--2.0 (sizes 250--500) \\
+$\rho_r$ & $\lr \hext \cmiss / (N \Br)$ & $\sim$1.2 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+$A$ is the feedback strength: $A \sim 1$ is a classical cache; $A \gg 1$ makes
+the write rate a state variable. $\Lambda$ is the cold-branch load
+ratio: $\Lambda < 1$ forbids a sustained cold state (bound~\eqref{eq:coldbound});
+$\Lambda > 1$ makes it feasible and the outcome race-decided. $G$
+compares the pinned-pool retention window to the reuse-gap scale $g$:
+$G < 1$ means a backlogged fleet cannot hit, which arms the cold
+branch; the same fleet at $h = 0$ with its backlog drained has
+$G \sim 1.7$, which is why a cold but idle fleet re-warms. $\kappa$ is the
+tier-persistence ratio of rule~\eqref{eq:ccpustar}: the measured fall-through sits
+at $\kappa < 1$, the persistent congested regime at $\kappa > 1$. $\rho_r$ is
+the restore-channel load: $\rho_r \geq 1$ pins the channel and the
+congested queue diverges. The router-span dependence of Section~\ref{sec:span} is
+deliberately absent from these ratios - it is a property of how one
+balancer couples $N$ replicas' drain races (Section~\ref{sec:mechanism}) - and the
+theory's scope is the existence, location, and scaling of the
+regimes at fixed span.
+
+\subsection{What the theory does not claim}
+\label{sec:theory-scope}
+
+The constructions are mean-field and first-order. They do not
+predict collapse probability inside the band (outcomes there are
+fluctuation-decided; the calibrated simulation of Section~\ref{sec:models} carries
+those claims, with documented biases), the magnitude of the span
+shift (Section~\ref{sec:models} reproduces its direction emergently), the timing of
+delayed collapses, or the escape dynamics of the congested regime
+(the model's documented recovery-branch failure, Section~\ref{sec:failures}). Each
+formula's anchor - $\mu(0)$ against the measured cold throughput, rule
+\eqref{eq:ccpustar} against the measured tier-size boundary, bound~\eqref{eq:murestore} against the
+measured restore pin - is a consistency check at one operating
+point, not a validated response surface.

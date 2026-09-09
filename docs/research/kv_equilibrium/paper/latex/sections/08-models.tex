@@ -1,0 +1,307 @@
+\section{Calibrated models: fluid and discrete-event}
+\label{sec:models}
+
+\subsection{Construction}
+\label{sec:construction}
+
+Two model layers share one calibration. The fluid model evolves a
+session reservoir with completion-coupled turn release, per-replica
+decode interference, and a contended fleet restore channel; restores
+form a third $\max()$ term in the waiting-time expression, achieved
+restore traffic advances the HBM write clock, and the tier churns at
+the measured ingest rate with hit-refresh \evid{R9}. Arriving (salted)
+sessions enqueue a forced full-miss first request as an explicit
+queue class, and surge populations are cancelled at surge end,
+matching the protocol.
+
+The DES adds the discrete structure the fluid cannot carry:
+watermark admission (waiting requests join a replica's batch, full
+KV need reserved, while the batch fits under the occupancy
+watermark; the prefill engine stays serialized), a two-clock LRU
+(the HBM clock advances with prefill, restores, and generation; the
+tier clock with new writes only; touch stamps refreshed at decode
+end), and a per-replica FCFS restore channel at $\Br$ with
+asynchronous onboarding \evid{R9}. A single-clock tier variant was
+rejected against measurement: it drives the tier to exhaustion and a
+cold collapse that the 300-min hardware run refutes, and it
+contradicts the measured tier-ingest rate.
+
+The deployed-router layer replaces the idealized lexicographic
+router with the deployed EPP algorithm, every scheduling constant
+read from deployed configuration or plugin code, none fitted:
+prefix-affinity sticky threshold 0.80; TTFT load gate 18000\,ms with
+TTFT estimated as in-flight tokens over the deployed peak prefill
+throughput of 28888 tokens/s; token-load scoring; and the 300\,s
+in-flight staleness reap, under which deep engine queues undercount
+and the gate rarely triggers under backlog \evid{R9}. The model contains
+no coordinator term: an earlier coordinator-saturation freeze is
+rejected on two independent grounds - the router-side measurements
+of Section~\ref{sec:coordinator} contradict its physical interpretation, and it is
+unnecessary (no outcome classification changes without it at the
+300-min horizon). The idealized router serves as a negative control:
+it produces identical collapse rates at capacity-matched points
+(3/5 at both ($N{=}8$, 0.020) and ($N{=}16$, 0.040)), so the measured span
+dependence is not reproducible from scheduling idealizations plus
+per-replica physics.
+
+\subsection{Calibration}
+\label{sec:calibration}
+
+Table~\ref{tab:calibration} lists every constant and its provenance; the single fitted
+quantity is the effective tier capacity (an assumed size-linear
+nominal times the fitted efficiency).
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.16\textwidth}p{0.22\textwidth}X@{}}
+\toprule
+Constant & Value & Source \\
+\midrule
+Prefill rate $p$ & 17k tokens/s/replica & measured saturated uncached plateaus, 131--138k tokens/s fleet \evid{R9} \\
+HBM pool $C$ & 6486 blocks $\times$ 256 tokens per TP4 replica & engine configuration; byte size cross-checked against KV/token \evid{R9} \\
+Decode interference & $\mathrm{tpot} = 10.8\,\mathrm{ms} + 2.56 \times 10^{-4} (R/N)^2$ & fit over 552 measured windows (Figure~\ref{fig:tpot}); per-replica form selected, fleet-total form falsified on saturated 4-replica windows (RMSE 27.4 vs 18.6\,ms) \evid{R9} \\
+Restore rate $\Br$ & 23k tokens/s/replica effective & measured per-replica restore plateau, 21.4--24.0k across four congested runs at both fleet scales \evid{R4}; a congested-state throughput calibration, not a channel ceiling (Section~\ref{sec:falsifiers}) \\
+DMA link & 151.5\,GB/s = 1.19M tokens/s/replica & measured from offload counters; $\Br$ runs the link at $\sim$2\% duty, so per-transfer overhead binds \evid{R4} \\
+KV per token & 127\,KB (fp8, 62 layers, 8 KV heads, dim 128) & validated against the pool byte size; windowed host-to-device bytes / 127\,KB matches the windowed tier-hit token rate to under 1\% in every tiered run \evid{R9} \\
+$\Ereq$ & 118 realized requests/session & 28,366 records / 240 sessions in the 3\,h windows; the corpus mean of 174 inflates demand $\sim$40\% and moves the model boundary off the measured bracket \\
+Reuse-gap CDF & corpus mixture, capped at 10.5\,s & the protocol gap cap, an experimental constant \evid{R9} \\
+First-request size & $\sim$51.6k tokens & system prompt plus first input; forced full miss per arriving salted session \\
+Router constants & 0.80 / 18000\,ms / 28888 tokens/s / 300\,s & read from deployed configuration and plugin sources; none fitted \evid{R9} \\
+Tier nominal capacity & 2520 tokens/replica per configured size unit (size 500 = 1.26M) & ASSUMED size-linear mapping anchored at size 500 to the 160\,GB/replica host-RAM headroom at 127\,KB/token; the configured-unit-to-byte semantics are unconfirmed (Section~\ref{sec:limitations}) \\
+Tier efficiency & 0.67 (FITTED) & cold-side ordering of the tier-size series: effective(250) = 0.42M must sit at or below the DES cold/congested transition and effective(375) = 0.63M at or above it, the in-model transition spanning (0.42, 0.63)M; the congested-state miss share independently implies an effective window below nominal \evid{R9}. Because the nominal is assumed, the product (0.42/0.63/0.84M at sizes 250/375/500) is in substance a single fitted effective-capacity scale \\
+\bottomrule
+\end{tabularx}
+\caption{Calibration constants and provenance.}
+\label{tab:calibration}
+\end{table*}
+
+\subsection{Validation}
+\label{sec:validation}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{overlay_b1_dynamics.png}
+\caption{Fluid overlay on the four protocol configurations (0.022,
+0.017, 0.012 sessions/s untiered at $N{=}8$; 0.011 with tier at $N{=}4$);
+surge window shaded; model curves labeled as model output. The
+waiting-queue trajectories match in all four configurations,
+including the post-cancellation re-growth in the collapsing one.}
+\label{fig:fluid}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{des_b1_overlay.png}
+\caption{DES validation configurations, 5 seeds each, min-max
+shading; deployed-router outcomes: collapse 4/5 at 0.022 (measured
+3/3), recovery 5/5 at 0.017 and 0.012, recovery 5/5 for the
+4-replica tiered configuration.}
+\label{fig:desb1}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{overlay_nseries.png}
+\caption{DES fleet-size sweep (12 seeds $\times$ 6 configurations, 300
+min, no coordinator term) with measured runs overlaid; the
+16-replica collapse curve sits left of the 8-replica curve at
+matched normalized rate. Model output; absolute placement carries
+the documented reservation bias.}
+\label{fig:nseries}
+\end{figure*}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_hysteresis.png}
+\caption{Model coexistence band (DES, deployed router, $N{=}8$,
+untiered, 3 seeds per point, 300-min horizon; model output).
+End-state hit rate versus session rate for the unperturbed protocol
+(warm branch) and the standard-surge protocol. Between roughly 0.017
+and 0.022 sessions/s the two branches coexist: unperturbed runs stay
+warm where perturbed runs end cold. At higher rates the warm branch
+itself decays by the delayed mechanism of Section~\ref{sec:horizon}. Placement
+carries the documented leftward reservation bias (Section~\ref{sec:biases}).}
+\label{fig:hysteresis}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_phase_diagram.png}
+\caption{Model outcome map over (session rate, effective tier
+capacity) under the standard perturbation (DES, deployed router,
+$N{=}8$, 3 seeds per cell, 300-min horizon; model output). The untiered
+row reproduces the probability band; the smallest tier falls through
+to cold at supercritical rates; larger tiers convert collapse into
+persistent congestion. The model produces no complete recoveries in
+the congested cells - its documented recovery-branch failure
+(Section~\ref{sec:failures}) - so the measured complete-recovery outcomes at sizes
+375--500 have no model counterpart in this map.}
+\label{fig:phasediagram}
+\end{figure}
+
+The model reproduces, in order of evidential weight \evid{R9}:
+
+\begin{itemize}
+\item The untiered band and outcome classes. Under the deployed-router
+  model: collapse at 0.022 in 4/5 seeds (measured 3/3), recovery 5/5
+  at 0.017 and 0.012, and the 4-replica tiered recovery 5/5 at its
+  180-min horizon. An earlier idealized-router revision additionally
+  matched the in-surge peak waiting depths (620--787 modeled against
+  675--790 measured on the 8-replica configurations), showed smooth
+  20--40\,min hit-rate erosion where the fluid transition is square,
+  and produced the post-cancellation warm interlude in every
+  collapsing seed (the measured interlude/no-interlude pair sits
+  inside the seed spread).
+\item The third regime, all four discriminators in 5/5 seeds: restore
+  channel pinned near $N \Br$, linear slow queue divergence, high $h$,
+  no cold collapse (Figure~\ref{fig:restore}). Quantitative gaps are stated, not
+  fitted: model $h$ 0.95 vs measured 0.70--0.85, restore share 1.0 vs
+  0.66--0.79, completion rate 1.6 vs 2.5--4.3 requests/s.
+\item The size-250 fall-through in direction and persistence boundary.
+  This is calibration-constrained rather than independent
+  validation - the tier efficiency is fitted to exactly this
+  cold-side ordering - so only the trajectory shape and seed
+  structure are non-fitted. Under the final calibration the fine
+  capacity sweep gives cold 5/6 at effective 0.42M while the
+  size-500 configuration runs congested 6/6, never cold, with the
+  DES mean tracking the measured decay-through-congestion
+  trajectory (Figure~\ref{fig:tiercap}).
+\item The span shift, emergent in direction. With no $N$-dependent term,
+  DES collapse counts at 300\,min (12 seeds per configuration) are
+  2/12, 11/12, 12/12 at ($N{=}8$) 0.017/0.020/0.022 and 5/12, 12/12,
+  11/12 at ($N{=}16$) 0.034/0.037/0.040. The shift is visible at the
+  0.017-equivalent pair (5/12 vs 2/12), a seed-level contrast that
+  does not reach significance at 12 seeds (one-sided exact $p \sim
+  0.19$); the upper matched pair is ceiling-saturated and carries no
+  shift information. The direction matches the measured sweep. The
+  shift arises from the deployed router's affinity-load arbitration
+  coupling every replica's post-cancellation drain race; the
+  idealized router - equally fleet-spanning and load-balancing -
+  produces no shift (Section~\ref{sec:construction}), so a shared span alone does not
+  produce it, and which deployed feature drives it is not isolated
+  (Section~\ref{sec:limitations}). The model predicts shard routers behave as
+  independent 8-replica systems, matching the measured containment
+  \evid{R10}.
+\end{itemize}
+
+\subsection{Known biases}
+\label{sec:biases}
+
+Full KV need is reserved at batch admission (vLLM allocates blocks
+progressively during chunked prefill), which overstates running-set
+residency during backlog drains. Both DES collapse curves sit left
+of the measured ones as a consequence; the model's quantitative
+claim is the shift and the outcome-class structure, never absolute
+collapse probabilities \evid{R9}. Further documented limitations: decode
+interference is frozen at decode start; there is no
+preemption/recompute path; collapsed-state $h$ floors at 0 in most
+seeds versus the measured 2--12\% residual.
+
+\subsection{Executed falsifiers}
+\label{sec:falsifiers}
+
+Predictions were registered before hardware windows and are reported
+regardless of outcome.
+
+\begin{itemize}
+\item The 4-replica tiered configuration at 300\,min: predicted waiting
+  depth 52--160; measured 1.3, stable 3/3 (one run at the full
+  horizon). Falsified; the miss is assigned to the recovery branch
+  (Section~\ref{sec:failures}) \evid{R9}.
+\item The tier 375/650 bracket, registered under the prior tier
+  efficiency of 0.5 (which placed 375 inside the predicted cold
+  region): 375 completely recovered 2/2, excluding 0.5 and forcing
+  the recalibration to 0.67; the 650 configuration was not
+  executable (boot failure, Section~\ref{sec:sizeseries}) \evid{R11}\evid{R9}.
+\item The 16-replica edge points: the sweep's left shift is confirmed in
+  direction by the measured counts (Section~\ref{sec:leftshift}; the 0.034 recovery
+  is $n=1$). The DES collapses 5/12 at 0.034 where the one measured
+  run recovered; an $n=1$ measurement is uninformative about that rate
+  (a recovery has probability 7/12 under the model's own counts).
+\item The fleet-total interference form: registered and falsified by the
+  saturated 4-replica windows (predicted 33\,ms vs measured 81\,ms
+  mean time-per-token); the per-replica form replaced it
+  (Section~\ref{sec:perreplica}) \evid{R6}\evid{R9}.
+\item The $\Br$ ceiling interpretation: encoded in the serial FCFS
+  channel; falsified by the two complete-recovery runs
+  (Section~\ref{sec:pinnedband}). The 23k plateau is a congested-state outcome. The
+  serial channel stands as a documented deficiency; its
+  concurrent-restore replacement fails the recovery-branch screen
+  and is not adopted (Section~\ref{sec:failures}).
+\end{itemize}
+
+\subsection{Documented failures and the recovery branch}
+\label{sec:failures}
+
+The recovery branch is the model's primary open failure: zero
+complete recoveries in 30 sweep runs at ($N{=}8$, 0.022) at any tier
+capacity, against 4 measured in 8 runs at sizes 375--500; the missed
+complete recovery at the 0.020 boundary; and the falsified 4-replica
+prediction above \evid{R9}. The failure is one-sided: the DES reproduces
+cold collapse, restore-bound congestion, and the untiered
+recoveries, but cannot exit the congested state through drain-back.
+The fluid layer carries a second documented failure, branch
+selection at cancellation: it reproduces the in-surge restore-bound
+state but flushes its restore backlog within $\sim$2\,min of cancellation
+and exits to the warm branch at both scales; the DES,
+restore-serialized with heterogeneous gaps, diverges - matching
+measurement. Both layers sit near the same critical balance, and no
+fluid constant flips the branch without violating a measurement, so
+the DES is the validated layer for the third regime.
+
+Four candidate mechanisms for the recovery-branch failure were
+screened on a shared protocol (seven configurations spanning tier,
+untiered, capacity, and span variants; 6 seeds; 300\,min), with the
+guard constraint that any candidate preserve the cold/congested
+boundary and the untiered band. All four screens are negative; none
+is adopted; each is summarized here with its exclusion scope, and
+the artifacts carry the full protocols.
+
+\begin{enumerate}
+\item Reservation timing (progressive KV allocation, removing the
+   full-reservation-at-admission overstatement): negative and
+   informative - the screened configuration remains 0/6 recovered,
+   and the variant manufactures a non-physical interference-locked
+   congested state in an untiered control configuration that the
+   engine's step-budget scheduler cannot enter. Its retained value
+   is diagnostic: every failing baseline run drains from waiting
+   depth 319--745 to a trough of 0--31, then re-enters congestion.
+\item Stale-content tier churn (a credit bracket subtracting dead-surge
+   write tokens from tier ages - the complete-instantaneous-reclamation
+   bound): null; outcome counts match baseline in every
+   configuration, and the instrumented run shows live write flux
+   churns dead content out of the model's window $\sim$13\,min after
+   cancellation with a rescuable live-miss fraction of 0.0
+   thereafter. Definitive exclusion within the two-clock
+   abstraction.
+\item Restore-channel serialization (concurrent onboarding at the
+   measured 1.19M tokens/s link with a derived 4.23\,s per-transfer
+   overhead): negative; failing configurations still re-enter
+   congestion, and the congested pin overshoots the measured
+   0.81--1.04 $N \Br$ band (peaks 1.91$\times$).
+\item Occupancy-gated HBM eviction (allocation-pressure-only eviction
+   replacing the unconditional aging clock, zero new constants,
+   pre-quantified as small since the trap itself pins occupancy near
+   0.88): negative; control configurations pass, screened
+   configurations fail 5/6, and the trap relocates - pending-restore
+   entries hold 0.69 of the fleet pool as full-KV reservations
+   queued behind the serial channel.
+\end{enumerate}
+
+Jointly the screens sharpen the failure to a re-entry trap: failing
+model runs drain to near-empty queues, then every completion
+re-admits a full-context restore (model restore share 1.0, $\sim$100k
+tokens per restore) where the measured congested state runs
+$h$ 0.70--0.85 with tier-hit fraction 0.62--0.79. Candidates 3 and 4
+bound the trap's carrier - with the channel widened it pins via
+elevated restore throughput; with residency corrected it pins via
+reservation-holding backlog - so the surviving suspect is the
+restored volume per tier hit interacting with full-KV reservation at
+admission (partial-context restores, or tier-content staleness
+outside the two-clock window model), not channel capacity,
+reservation timing, or residency semantics \evid{R9}. We present this as
+the diagnosis of an open model failure, not as a result. The
+gauge-semantics caveat of Section~\ref{sec:stack} applies to any successor
+variant: restore-in-flight entries must not feed the decode
+interference term while still holding reservations.

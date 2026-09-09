@@ -1,0 +1,70 @@
+\section{Claim register}
+\label{sec:claims}
+
+Every claim, its evidence, and its grade (Section~\ref{sec:grading}). Grades:
+DEM = demonstrated; FREQ($n$) = outcome frequency over $n$ runs;
+MODEL = model-supported; OPEN = open problem. Rows condense the
+claims map, which carries full evidence pointers and hedge
+requirements \evid{paper/claims-map.md}; single-run flags are inline.
+Tables \ref{tab:claims-a} and \ref{tab:claims-b} split the register.
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}lXl@{}}
+\toprule
+ID & Claim & Grade \\
+\midrule
+C01 & Absorbing cold state after the standard surge at ($N{=}8$, 0.022): $h$ 0.016--0.030, TTFT p50 240\,s, throughput 1.2--1.4 requests/s, zero recovery over 195 post-surge min & DEM ($n=3$; one 300-min horizon) \\
+C02 & Collapse outcome is a probability band: 0.012 recovers 2/2, 0.017 4/4, 0.020 collapses 5/8 in three classes, 0.022 collapses 3/3 & FREQ(17) \\
+C03 & Two threshold axes: surge duration (900\,s recovers, 2700\,s entraps) and sustained flux vs drain headroom & DEM (one contrast pair per axis) \\
+C04 & Realized rate varies $\sim\pm0.4$ requests/s at fixed $\ls$ and does not order outcomes & FREQ(8) \\
+C05 & Delayed collapse near minute 240 in 2/8 surviving runs; sub-300-min horizons overstate stability & FREQ(8) \\
+C06 & Hysteresis: no re-warm from cold at a load served comfortably warm; recovery requires shedding below the band & DEM \\
+C07 & Closed-loop arrivals self-stabilize; absorbing collapse requires non-yielding demand & DEM \\
+C08 & Drain depth $D$ separates immediate collapse in 8/8 runs at the boundary and adds signal beyond rate over 21 runs (permutation $p = 0.027$) & FREQ(21) \\
+C09 & The $D$ threshold moves with rate and span; $D$ does not predict the delayed class & FREQ(21); span points $n=1$ each \\
+C10 & Third regime at ($N{=}8$, 0.022, size 500): $h$ 0.70--0.85, restore pinned at 0.81--1.04 $N \Br$, queue diverging $\sim$0.8/min & DEM ($n=4$, two 300-min) \\
+C11 & The pinned band is a state outcome, not a capacity: complete recoveries sustained 1.28--1.51$\times$ $N \Br$ & DEM ($n=2$) \\
+C12 & At 0.020 the tier converted a collapsing point into complete recovery & FREQ(1 per side); single-run pair \\
+C13 & Tier capacity sets persistence: 250 falls through 1/1, 375 recovers 2/2, 500 splits 4 congested / 2 recovered of 6 & FREQ(9); 250 single-run \\
+C14 & Tier boot envelope ends in (500, 650) on these hosts & DEM \\
+C15 & Collapse curve shifts left with span: mixed point 0.020 $\to$ 0.0185 normalized ($\sim$7.5\%; brackets 0--16\%) & FREQ(7 at $N{=}16$, 15 at $N{=}8$); 0.034 single-run \\
+C16 & Every 16-replica collapse is early-onset and fleet-total & FREQ(5) \\
+C17 & The 16-replica collapse is configuration-independent & FREQ(4); approximate-config point single-run \\
+C18 & Shard routers contain every collapse inside one partition & FREQ(6 shard runs, 5 fleet-total collapses) \\
+\bottomrule
+\end{tabularx}
+\caption{Claim register, C01--C18.}
+\label{tab:claims-a}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}lXl@{}}
+\toprule
+ID & Claim & Grade \\
+\midrule
+C19 & Load imbalance refuted: query-share dispersion is $N$-invariant & DEM \\
+C20 & 16-replica signatures: $h$ dispersion, excess occupancy and miss-write flux, staggered pinning cascade & DEM (observables); mechanism reading inferred \\
+C21 & Coordinator resources unsaturated through three reproducing collapses & DEM \\
+C22 & Affinity necessity: load-only configuration runs warm at $h$ 0.53 and collapses with no recovery phase & FREQ(1); single-run \\
+C23 & Surviving span mechanism: coupling of the drain race, reproduced emergently by the DES & MODEL (mechanism); DEM (containment) \\
+C24 & Per-replica physics is scale-invariant; span dependence lives in the coordination layer & DEM \\
+C25 & One calibration, every constant measured or read from deployment, one fitted scale (effective tier capacity) & DEM (provenance) \\
+C26 & Model reproduces the band, four congested discriminators 5/5, tier fall-through direction, span-shift direction (emergent) & MODEL \\
+C27 & Both model curves sit left of measurement (reservation bias); no absolute probabilities claimed & MODEL \\
+C28 & The coordinator-saturation term is retired: contradicted by measurement and unnecessary & DEM \\
+C29 & $\Br$-as-ceiling is falsified; the serial restore channel is a documented deficiency & DEM (falsifier); OPEN (deficiency) \\
+C30 & Recovery branch: zero model complete recoveries vs 4/8 measured; falsified 4-replica prediction & OPEN \\
+C31 & Four recovery-branch candidates screened negative, each with stated exclusion scope & MODEL (exclusions) \\
+C32 & The failure sharpens to a re-entry trap; surviving suspect is restored volume per tier hit under full-KV reservation & OPEN \\
+C33 & Request-metered load generation is a built-in retry storm; session-level demand pinning is required & DEM \\
+C34 & Comparability requires fixing router configuration, corpus, gap cap, salt, duration; $h$ from cached-token counter differences & DEM \\
+C35 & Artifact-existence rules make absent data auditable & DEM \\
+\bottomrule
+\end{tabularx}
+\caption{Claim register, C19--C35.}
+\label{tab:claims-b}
+\end{table*}

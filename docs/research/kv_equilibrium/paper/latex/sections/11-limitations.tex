@@ -1,0 +1,76 @@
+\section{Limitations and future work}
+\label{sec:limitations}
+
+\paragraph{Scope.} All measurements come from one stack: one model
+(Qwen3-Coder-480B FP8), one corpus family, one router
+implementation, GB200 TP4 fleets at $N \in \{4, 8, 16\}$. Numeric
+thresholds do not transfer. The mechanism of Section~\ref{sec:theory} requires only
+an LRU prefix cache, full-context re-prefill on miss, and
+non-yielding demand, and the theory states which quantities to
+re-measure elsewhere ($\wmiss/\whit$, $\Ereq$, $F$, $p$, $\Br$); reproduction
+on a second stack is future work.
+
+\paragraph{Gap cap.} The protocol caps reuse gaps at 10.5\,s, making the replay a
+machine-pace workload; Section~\ref{sec:retention} quantifies how the cap moves the
+static retention analysis. Production traffic with the human-pace
+tail restores gap mass at minutes-to-hours, which enlarges the
+retention-driven contribution to coexistence; the capped protocol is
+therefore conservative about the phenomenon's breadth, not
+generous.
+
+\paragraph{Single-run observations.} The following rest on $n=1$ and never solely
+support a probability, threshold, or trend: both sides of the 0.020
+tier/untiered matched pair \evid{R5}; the size-250 fall-through \evid{R11};
+the 16-replica 0.034 point \evid{R6}; the approximate-configuration
+16-replica collapse \evid{R10}; the load-only ablation \evid{R14}; the
+4-replica 300-min falsifier horizon \evid{R9}. The two collapse-threshold
+axes each rest on one measured contrast pair \evid{R2}, and the $\Br$
+falsifier on two complete-recovery runs \evid{R4}.
+
+\paragraph{Confounding and run dependence.} $D$ and the $N{=}16$ indicator are
+confounded at $n=21$ (every 16-replica run at the 0.020-equivalent
+point both drained shallow and collapsed), so the fitted separatrix
+cannot separate a span effect from a drain-depth effect at this
+sample size \evid{R15}. Shard runs executed pairwise in shared windows;
+two same-configuration replicate pairs span days; all outcome counts
+treat runs as independent (Section~\ref{sec:comparability}). The two delayed collapses
+are exactly the two dedicated-fleet runs, so dedicated and shard
+runs may not be exchangeable; the conservative shard-only
+permutation form gives $p = 1/20$ (Section~\ref{sec:separatrix}).
+
+\paragraph{Model gaps.} The DES misses the delayed-collapse onset class (its
+onsets form a 135--205\,min continuum where the measured onsets are
+bimodal) \evid{R15}. Which deployed-router feature carries the emergent
+span shift is not isolated, and whether the DES 16-replica collapses
+exhibit the measured per-replica signatures of Section~\ref{sec:mechanism} is
+unchecked. The recovery branch is the primary modeling front
+(Section~\ref{sec:failures}). The serial restore channel remains a documented
+deficiency whose ceiling interpretation is falsified by measurement
+\evid{R4}.
+
+\paragraph{Mitigation scope.} The Section~\ref{sec:mitigation} screen is model output at one
+operating point per claim: no controller ran on hardware, the
+deferral gate's thresholds are placements relative to this fleet's
+warm state rather than transferable constants, the AIMD baseline
+omits CONCUR's mid-session pausing, the rejection baseline uses a
+prefill-bound delay predictor simpler than Mooncake's, and the
+router-policy emulations use engine-truth match state at a
+single-router span. The FIFO reservoir carries no priority classes,
+so deferred bulk work delays later interactive arrivals; class-aware
+release is unevaluated. Hardware validation of the deferral gate at
+the measured collapse point is the planned next experiment.
+
+Statistics that would tighten with hardware: the 16-replica 0.034
+($n=1$) and 0.037 ($n=2$) points, the size-375 tier ($n=2$) with
+realized-rate covariates, and the immediate-versus-delayed class
+split at 0.022; none blocks the present claims. The tier
+unit-semantics question stands: confirming the RAM accounting behind
+the nominal tier capacities before any larger-tier experiment \evid{R11}.
+Six related-work full-text reviews remain outstanding before
+submission \evid{related-work-sweep.md}: \cite{ao2026congestion},
+\cite{vanrooyen2026collapse}, the retry-storm section of
+\cite{pandey2026failureatlas}, the caching and load-balancing chapters of
+\cite{nixon2026yearserving}, the thrashing passage of \cite{yuan2026agentic},
+and \cite{aqua2025}; the SGLang and AIBrix policy constants of Section
+\ref{sec:routerfamily} are read from project documentation and source and are verified
+against the released versions before submission.

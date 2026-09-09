@@ -1,0 +1,137 @@
+\section{Measurement methodology}
+\label{sec:method}
+
+\subsection{Stack and instrumentation}
+\label{sec:stack}
+
+All measurements run on TP4 GB200 fleets of 4, 8, or 16 replicas
+serving Qwen3-Coder-480B-A35B-Instruct-FP8 under vLLM with block
+size 256; each replica holds a KV pool of $6486 \times 256$-token blocks
+(13.28M tokens at 8 replicas) \evid{experiment-env.md}. Requests reach
+the fleet through an Envoy front end and an Endpoint Picker (EPP)
+router. The router plugin configuration is a first-class
+experimental factor, selected per run among three configurations: a
+precise prefix-cache configuration (KV-event token-based affinity;
+the baseline for the main series), an approximate-prefix
+configuration with no KV-event pipeline, and a load-only
+configuration (queue and KV-utilization scorers, no affinity
+signal) \evid{experiment-env.md}.
+
+Server state is scraped from per-replica metrics endpoints at 5\,s
+cadence, and fleet aggregates use replica endpoints only (the
+service endpoint round-robins replicas) \evid{C34}. Hit rate $h$ is
+computed as windowed counter differences of
+\texttt{vllm:prompt\_tokens\_cached} over \texttt{vllm:prompt\_tokens}; the
+\texttt{prefix\_cache\_queries}/\texttt{hits} pair is not used because it re-counts
+under pressure \evid{experiment-env.md}. On tiered fleets, the tier hit
+fraction $\hext$ is the external (host-tier) hit-token fraction,
+\texttt{vllm:external\_prefix\_cache\_hits} over \texttt{external\_prefix\_cache\_queries}
+(token counters), and the restore share of hits is the fraction of
+hit tokens served from the tier \evid{overlay-findings.md}. Time series
+are aggregated into 5-minute windows anchored to wall clock so
+concurrent runs align \evid{analyze\_run\_windows.py}. One gauge-semantics
+caveat applies throughout: the \texttt{vllm:num\_requests\_running} gauge
+excludes requests in \texttt{WAITING\_FOR\_REMOTE\_KVS}, so server-side running
+counts do not equal client-side load during restore phases \evid{R9}.
+
+\subsection{Workload}
+\label{sec:workload}
+
+The primary corpus is a 393-session agentic coding replay set
+(68,266 requests, mean $\sim$174 requests per session), collected from
+real coding-agent traffic and replayed with per-instance prefix
+salting so replay instances share no cache (unsalted replays inflate
+$h$) \evid{experiment-env.md}. The corpus exhibits the agentic structure of
+Section~\ref{sec:intro}: $\sim$52k-token opening system prompts, few-thousand-token
+per-turn increments, growth to a 249k compaction ceiling, bimodal
+think times (78\% of turns within seconds; a long human-pace tail),
+and subagent fan-out in 44\% of sessions. Inter-request idle gaps are
+capped at 10.5\,s, the corpus p90, making the replay a machine-pace
+workload; the cap is an experimental control for the reuse-gap
+distribution $F$ (Sections \ref{sec:retention}, \ref{sec:implications}). Surge traffic replays a disjoint
+232-session corpus so burst and base load share no session identity.
+
+Arrival semantics determine whether collapse is reachable, so we
+state them precisely. Open-loop experiments use Poisson session
+arrivals at rate $\ls$ with concurrency as an admission ceiling;
+requests within a session remain completion-ordered. Closed-loop
+experiments meter a fixed credit of in-flight work; the measured
+credit multiplier is $\sim$1.45$\times$ configured concurrency on this corpus,
+so all load-axis statements use achieved in-flight \evid{R8}.
+Request-metered rate mode is excluded from collapse experiments: it
+re-issues work independently of completions, a built-in retry storm,
+whereas completion-coupled session arrivals defer rather than storm.
+Open-loop collapse experiments therefore pin demand at the session
+level \evid{R7}\evid{C33}.
+
+\subsection{Perturbation protocol}
+\label{sec:protocol}
+
+Each collapse experiment resets every replica's prefix cache, runs
+base load at $\ls$, and at $t \sim +62$\,min launches a surge overlay
+without cache reset: 0.25 sessions/s for 2700\,s (the standard surge;
+a 900\,s variant probes the duration axis), with cancellation at
+$t \sim +107$\,min. The surge generator cancels its entire session
+population on exit, so all post-cancellation dynamics are sustained
+by the base load alone. Horizons run 150--300\,min; Section~\ref{sec:horizon} shows
+why the long horizon is necessary. Closed-loop states are held 65
+min before being read as stationary \evid{R8}.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_protocol.png}
+\caption{Perturbation protocol timeline. Prefix-cache reset on all
+replicas at $t{=}0$; base Poisson session arrivals at $\ls$ sustained
+to the end of the 150--300\,min horizon; eviction-scale surge overlay
+(0.25 sessions/s $\times$ 2700\,s, disjoint corpus, no cache reset) over
+[62, 107)\,min, with the surge population cancelled at $t{=}107$ so the
+post-cancellation drain-versus-catch-up race over [107, $\sim$120)\,min is
+base-sustained. The warm state is read over [30, 60]\,min, the drain
+depth $D$ (Section~\ref{sec:separatrix}) over [115, 120)\,min, and end-state outcomes
+are classified over [270, 295]\,min (cold if mean $h < 0.15$).}
+\label{fig:protocol}
+\end{figure*}
+
+\subsection{Comparability and run-to-run variance}
+\label{sec:comparability}
+
+Five factors are recorded per run and held fixed within any
+comparison: router configuration, corpus, gap cap, salt, and
+duration \evid{C34}; run identifiers and per-run configurations are
+recorded in the artifact ledger. An early reference series that ran
+under different router configurations and unsalted generators is
+excluded from all fits. Realized request rate varies $\sim\pm0.4$
+requests/s between runs at fixed $\ls$ and does not order
+outcomes in the series where this was checked \evid{R2}\evid{C04};
+consequently every probabilistic statement in this paper is an
+outcome count over repeated runs, never a response inferred from a
+single run. Runs are treated as statistically independent: every run
+starts from a cache reset, and a namespace-split check across the
+two shard environments supports run-to-run variance over a fixed
+environment effect. Two dependence structures remain and are carried
+as confounds (Section~\ref{sec:limitations}): shard runs executed pairwise in shared
+windows, and two same-configuration replicate pairs across days.
+
+Two artifact-existence rules make absent data auditable rather than
+silently missing: load-generator artifacts exist only after
+end-of-run export (one hung export in $\sim$40 runs through the
+mid-campaign window, zero in the final 19-run window), and capacity
+reclaim destroys un-scaled fleets, so an unconditional scale-down is
+scheduled at window start \evid{R12}\evid{C35}.
+
+\subsection{Evidence grading}
+\label{sec:grading}
+
+Every claim in this paper carries one of four grades, and the full
+register appears in Appendix~\ref{sec:claims}. \emph{Demonstrated}: direct measurement,
+replicated or internally cross-checked; stated as fact with $n$
+reported. \emph{Outcome frequency ($n$)}: a tally over $n$ repeated runs;
+stated as the tally, never as a fitted probability. \emph{Model-supported}:
+holds in the calibrated fluid/DES models; attributed to the model
+with its validation scope. \emph{Open}: a documented failure or unresolved
+question, reported as such. Single-run observations are flagged
+inline ($n=1$) and never support a probability, threshold, or trend on
+their own. We regard the grading itself as methodology: metastable
+phenomena produce run-to-run outcome variance at fixed operating
+points (Section~\ref{sec:band}), and ungraded reporting of single runs is how
+such phenomena get mis-measured.

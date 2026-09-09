@@ -1,0 +1,132 @@
+\section{Background and related work}
+\label{sec:related}
+
+\paragraph{Metastable failures.} Bronson et al.\ \cite{bronson2021metastable} define
+the class through its three elements: a trigger, a sustaining
+effect, and a degraded stable state. Huang et al.\ \cite{huang2022wild}
+study production occurrences, including a look-aside-cache
+reproduction in which a cache-hit-rate drop sustains overload.
+Farahbakhsh et al.\ state the prediction agenda - a model sketch for
+whether a given request-response structure admits metastable states
+\cite{farahbakhsh2025modeling}, with a causal characterization in
+\cite{farahbakhsh2026characterizing}. These works establish the class and
+the agenda. This paper exhibits a new sustaining mechanism,
+hit-rate-dependent KV write amplification through full-context
+re-prefill, with a measured probability band, measured dependence on
+tier capacity and router span, and a calibrated model. The mechanism
+differs from the look-aside instance in where the amplification
+lands: there, misses amplify load onto a backing service behind the
+cache; here, a miss writes its re-prefilled context back into the
+same finite pool it missed in - write amplification into the cache's
+own capacity. Metronome \cite{meng2026metronome} applies the metastable
+label to LLM KV memory in a setting where full-duplex sessions pin
+monotonically growing per-session state and a linear open-loop fill
+model predicts an abrupt stall; that model has one absorbing state
+and no feedback, hit-rate, hysteresis, or recovery structure. Its
+14-of-20 versus 6-of-20 outcome split under identical conditions
+independently corroborates outcome bimodality at fixed operating
+points. The metastability here is of the Bronson kind: a sustaining
+loop, demonstrated by hysteresis.
+
+\paragraph{Bifurcation treatments of AI serving loops.} van Rooyen
+\cite{vanrooyen2026collapse} develops first-order collapse, closed-form
+spinodals, cusp-organized bistability, and hysteretic recovery for
+an AI system's operating loop under congestion-dependent feedback.
+This is the closest published vocabulary match to the equilibrium
+structure here, but the physical feedback differs: there,
+uncertified output re-enters the loop as added load (retry-type
+amplification); here the feedback channel is the cache state itself.
+On abstract-level review (full-text review precedes submission,
+Section~\ref{sec:limitations}), that work carries no cache state variable, no phase
+boundary in (capacity, load), no workload calibration, and no
+serving-system validation of a cache mechanism. The two are
+complementary instantiations of the same fold-and-hysteresis
+mathematics; ours is the cache-feedback instantiation with
+measured-constant calibration and multi-replica validation.
+
+\paragraph{Queueing stability for LLM inference.} Nie et al.\ \cite{nie2026queueing}
+give a queueing-theoretic stability framework for LLM inference
+under KV memory constraints; Dai et al.\ \cite{dai2025throughput} prove
+throughput-optimality of work-conserving schedulers in a fluid-limit
+framework covering agentic workloads; Dong and Cao \cite{dong2026flow}
+derive stability conditions for admission-budgeted scheduling. In
+all of these the service rate is cache-independent and memory enters
+as a constraint. With hit-rate feedback the effective service rate
+is state-dependent, and the stability region acquires a coexistence
+band that work-conservation arguments do not see. Our closed-loop
+measurements (Section~\ref{sec:closedloop}) locate the arrival semantics under which
+the constraint-style analyses apply. Ao et al.\ analyze
+service-induced congestion in memory-constrained serving
+\cite{ao2026congestion}, in a line with fluid-guided scheduling under
+endogenous per-request memory growth \cite{ao2025fluid}; its mechanism is
+memory growth during service, not prefix-cache feedback (full-text
+review pending, Section~\ref{sec:limitations}).
+
+\paragraph{Cache-aware routing.} DualMap \cite{yuan2026dualmap} engineers the
+affinity-versus-load trade-off with dual-hash power-of-two-choices
+mapping and SLO-triggered fallback. Continuum \cite{li2025continuum} pins
+KV across tool-call gaps with a TTL. CacheScout
+\cite{zhang2026cachescout} learns agent execution transitions to guide
+eviction and prefetch. These works optimize the trade-off's
+performance. We show the trade-off has a stability dimension: the
+affinity term keeps the fleet on the warm branch and carries the
+recovery path (Section~\ref{sec:affinity}, one measured run), and the span of the
+balancer sets collapse probability and blast radius - quantities
+absent from their evaluations.
+
+\paragraph{Tiered KV caches and restore bandwidth.} Mooncake \cite{qin2025mooncake}
+trades storage for computation in a KVCache-centric architecture and
+motivates early rejection under overload. CacheFlow
+\cite{nian2026cacheflow} identifies KV restoration as a dominant
+bottleneck and parallelizes it. Kareto \cite{zheng2026kareto} treats tier
+sizing as a multi-objective steady-state optimization. Unclaimed in
+this literature is the persistent congested serving regime pinned at
+restore throughput, with persistence set by tier capacity (Sections
+\ref{sec:congestion}, \ref{sec:sizeseries}), and the stability discontinuity in tier sizing - the
+fall-through to cold collapse at insufficient capacity - which a
+steady-state Pareto analysis cannot expose.
+
+\paragraph{Classical cache theory.} The characteristic-time frame of Che et al.\
+\cite{che2002hierarchical}, with the validity analysis of Fricker, Robert,
+and Roberts \cite{fricker2012versatile}, describes an LRU cache whose
+retention window is set by the aggregate write rate. The prefix
+cache fits this frame with one addition outside its assumptions: the
+write rate depends on the hit rate, because misses write full
+contexts (Section~\ref{sec:retention}). Multiple cache steady states are themselves
+classical: Rosensweig et al.\ \cite{rosensweig2013steady} show cache
+networks can be non-ergodic, with the steady state depending on
+initial placement. That multiplicity is combinatorial, arising from
+placement dependencies across a topology at fixed demand, with no
+load parameter, no capacity-load boundary, and no hysteresis sweep;
+the multiplicity here comes from a scalar write-rate feedback within
+a single tier, yielding a load-parameterized coexistence band and a
+hysteresis loop. Denning's thrashing analysis \cite{denning1968thrashing},
+with its multiprogramming-level control, is the classical ancestor
+of the operational response to such regimes; the differences here
+are a measured probability band, hysteresis, and coordination-layer
+dependence rather than a qualitative regime.
+
+\paragraph{Observation base.} CONCUR \cite{chen2026concur} is the closest published
+statement of the phenomenon: in agentic batch inference, KV usage
+pins at 80--100\% while the prefix-cache hit rate collapses and stays
+low for most of execution (its Figure~3, from a large-scale
+deployment), with a measured hit-rate knee against concurrency,
+mitigated by an AIMD admission controller keyed on cache usage and
+hit rate. It stops at the observation and a preventive
+fixed-constant heuristic: hit rate is a measured signal there, never
+a modeled state variable; no absorbing state, hysteresis,
+probability band, or recovery semantics is measured or claimed; and
+its mechanism attribution is exogenous (agents paused for tool calls
+losing LRU recency), not the miss-write amplification that closes
+the loop here. TraceLab \cite{zhu2026tracelab} characterizes coding-agent
+traffic on a public corpus, including a retention-window-to-hit-rate
+sweep and the finding that idle gaps beyond $\sim$5 minutes drive most
+misses - the gap structure our protocol's gap cap controls
+(Section~\ref{sec:workload}). Yuan et al.\ \cite{yuan2026agentic} characterize agentic
+workloads and, per abstract-level review, warn of a thrashing regime
+once aggregate agent context exceeds GPU memory. Ranganathan et al.\
+\cite{ranganathan2025incidents} taxonomize 156 high-severity production
+LLM inference incidents; Nixon et al.\ \cite{nixon2026yearserving} release
+a year-long production serving trace. The phenomenon class is widely
+observed and, prior to this work, unmodeled for the prefix-cache
+feedback channel.
